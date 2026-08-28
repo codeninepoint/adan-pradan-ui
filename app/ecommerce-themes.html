@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="violet">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Adan Pradan — E-commerce Color Themes</title>
+  <style>
+    /* ── Base tokens (overridden per theme) ── */
+    :root {
+      --primary: #7C3AED;
+      --primary-hover: #6D28D9;
+      --secondary: #8B5CF6;
+      --background: #FAF5FF;
+      --surface: #FFFFFF;
+      --text: #1E1B4B;
+      --text-muted: #6B7280;
+      --border: #E9D5FF;
+      --accent: #A855F7;
+      --success: #16A34A;
+      --warning: #D97706;
+      --error: #DC2626;
+      --pill-color: #7C3AED;
+      --hero-tint: rgba(124, 58, 237, 0.08);
+    }
+
+    /* ── VIBGYOR themes ── */
+    [data-theme="violet"] {
+      --primary: #7C3AED; --primary-hover: #6D28D9; --secondary: #8B5CF6;
+      --background: #FAF5FF; --surface: #FFFFFF; --text: #1E1B4B;
+      --text-muted: #6B7280; --border: #E9D5FF; --accent: #A855F7;
+      --pill-color: #7C3AED; --hero-tint: rgba(124, 58, 237, 0.08);
+    }
+    [data-theme="indigo"] {
+      --primary: #4F46E5; --primary-hover: #4338CA; --secondary: #6366F1;
+      --background: #EEF2FF; --surface: #FFFFFF; --text: #1E1B4B;
+      --text-muted: #6B7280; --border: #C7D2FE; --accent: #818CF8;
+      --pill-color: #4F46E5; --hero-tint: rgba(79, 70, 229, 0.08);
+    }
+    [data-theme="blue"] {
+      --primary: #2563EB; --primary-hover: #1D4ED8; --secondary: #3B82F6;
+      --background: #EFF6FF; --surface: #FFFFFF; --text: #1E3A5F;
+      --text-muted: #6B7280; --border: #BFDBFE; --accent: #60A5FA;
+      --pill-color: #2563EB; --hero-tint: rgba(37, 99, 235, 0.08);
+    }
+    [data-theme="green"] {
+      --primary: #16A34A; --primary-hover: #15803D; --secondary: #22C55E;
+      --background: #F0FDF4; --surface: #FFFFFF; --text: #14532D;
+      --text-muted: #6B7280; --border: #BBF7D0; --accent: #4ADE80;
+      --pill-color: #16A34A; --hero-tint: rgba(22, 163, 74, 0.08);
+    }
+    [data-theme="yellow"] {
+      --primary: #CA8A04; --primary-hover: #A16207; --secondary: #EAB308;
+      --background: #FEFCE8; --surface: #FFFFFF; --text: #422006;
+      --text-muted: #78716C; --border: #FEF08A; --accent: #FACC15;
+      --pill-color: #CA8A04; --hero-tint: rgba(202, 138, 4, 0.1);
+    }
+    [data-theme="orange"] {
+      --primary: #EA580C; --primary-hover: #C2410C; --secondary: #F97316;
+      --background: #FFF7ED; --surface: #FFFFFF; --text: #431407;
+      --text-muted: #78716C; --border: #FED7AA; --accent: #FB923C;
+      --pill-color: #EA580C; --hero-tint: rgba(234, 88, 12, 0.08);
+    }
+    [data-theme="red"] {
+      --primary: #DC2626; --primary-hover: #B91C1C; --secondary: #EF4444;
+      --background: #FEF2F2; --surface: #FFFFFF; --text: #450A0A;
+      --text-muted: #78716C; --border: #FECACA; --accent: #F87171;
+      --pill-color: #DC2626; --hero-tint: rgba(220, 38, 38, 0.08);
+    }
+
+    /* ── Neutral themes ── */
+    [data-theme="light"] {
+      --primary: #18181B; --primary-hover: #27272A; --secondary: #52525B;
+      --background: #FAFAFA; --surface: #FFFFFF; --text: #18181B;
+      --text-muted: #71717A; --border: #E4E4E7; --accent: #3F3F46;
+      --pill-color: #18181B; --hero-tint: rgba(24, 24, 27, 0.04);
+    }
+    [data-theme="dark"] {
+      --primary: #FAFAFA; --primary-hover: #E4E4E7; --secondary: #A1A1AA;
+      --background: #09090B; --surface: #18181B; --text: #FAFAFA;
+      --text-muted: #A1A1AA; --border: #27272A; --accent: #D4D4D8;
+      --success: #4ADE80; --warning: #FBBF24; --error: #F87171;
+      --pill-color: #FAFAFA; --hero-tint: rgba(250, 250, 250, 0.05);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #F4F4F5;
+      color: #18181B;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* ── Page chrome (outside preview) ── */
+    .page-header {
+      background: #FFFFFF;
+      border-bottom: 1px solid #E4E4E7;
+      padding: 1.5rem 1.25rem;
+      text-align: center;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .page-header p {
+      color: #71717A;
+      font-size: 0.9rem;
+      margin-top: 0.35rem;
+      max-width: 540px;
+      margin-inline: auto;
+    }
+
+    .selector-section {
+      background: #FFFFFF;
+      border-bottom: 1px solid #E4E4E7;
+      padding: 1rem 1.25rem 1.25rem;
+    }
+    .selector-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #A1A1AA;
+      margin-bottom: 0.5rem;
+    }
+    .selector-label + .selector-label { margin-top: 0.75rem; }
+    .theme-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .theme-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.85rem;
+      border: 2px solid #E4E4E7;
+      border-radius: 999px;
+      background: #FFFFFF;
+      font-size: 0.8rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      color: #3F3F46;
+    }
+    .theme-pill:hover { border-color: #A1A1AA; }
+    .theme-pill.active {
+      border-color: var(--pill-color, #7C3AED);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--pill-color, #7C3AED) 25%, transparent);
+    }
+    .pill-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 1.25rem;
+      padding: 1.25rem;
+      max-width: 1280px;
+      margin-inline: auto;
+    }
+    @media (min-width: 900px) {
+      .main-layout {
+        grid-template-columns: 1.4fr 1fr;
+        align-items: start;
+      }
+    }
+
+    /* ── Preview panel ── */
+    .preview-panel {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #E4E4E7;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+    .preview-label {
+      background: #F4F4F5;
+      padding: 0.5rem 1rem;
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #71717A;
+      border-bottom: 1px solid #E4E4E7;
+    }
+    .storefront {
+      background: var(--background);
+      color: var(--text);
+      min-height: 480px;
+    }
+
+    /* Navbar */
+    .store-nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    .store-logo {
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--primary);
+      letter-spacing: -0.02em;
+    }
+    .store-nav-links {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .store-nav-links a { color: inherit; text-decoration: none; }
+    .store-nav-links a:hover { color: var(--primary); }
+    .store-cart {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: var(--text);
+      position: relative;
+    }
+    .cart-badge {
+      background: var(--accent);
+      color: #FFFFFF;
+      font-size: 0.65rem;
+      font-weight: 700;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    [data-theme="dark"] .cart-badge,
+    [data-theme="light"] .cart-badge { color: var(--background); }
+    [data-theme="yellow"] .cart-badge { color: #422006; }
+
+    /* Hero */
+    .store-hero {
+      padding: 1.5rem 1rem;
+      background: var(--hero-tint);
+      border-bottom: 1px solid var(--border);
+    }
+    .store-hero h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.35rem;
+      letter-spacing: -0.02em;
+    }
+    .store-hero p {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .hero-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    [data-theme="dark"] .btn-primary,
+    [data-theme="light"] .btn-primary { color: var(--background); }
+    [data-theme="yellow"] .btn-primary { color: #FFFFFF; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--primary);
+      border: 1.5px solid var(--border);
+    }
+    .btn-secondary:hover { background: var(--hero-tint); }
+
+    /* Product grid */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.75rem;
+      padding: 1rem;
+    }
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .product-img {
+      height: 90px;
+      background: linear-gradient(135deg, var(--border) 0%, var(--hero-tint) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      position: relative;
+    }
+    .sale-badge {
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      background: var(--accent);
+      color: #FFFFFF;
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    [data-theme="dark"] .sale-badge,
+    [data-theme="light"] .sale-badge,
+    [data-theme="yellow"] .sale-badge { color: var(--background); }
+    [data-theme="yellow"] .sale-badge { color: #422006; }
+    .product-body { padding: 0.6rem; }
+    .product-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      line-height: 1.3;
+    }
+    .product-price {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .product-mrp {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-decoration: line-through;
+      margin-left: 0.25rem;
+    }
+    .stock-label {
+      font-size: 0.65rem;
+      font-weight: 600;
+      margin: 0.35rem 0;
+    }
+    .stock-in { color: var(--success); }
+    .stock-low { color: var(--warning); }
+    .stock-out { color: var(--error); }
+    .btn-add {
+      width: 100%;
+      margin-top: 0.35rem;
+      padding: 0.4rem;
+      font-size: 0.7rem;
+    }
+    .btn-add:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    /* Footer */
+    .store-footer {
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ── Details panel ── */
+    .details-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .card {
+      background: #FFFFFF;
+      border: 1px solid #E4E4E7;
+      border-radius: 12px;
+      padding: 1rem 1.1rem;
+    }
+    .card h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #52525B;
+    }
+
+    .swatch-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+      gap: 0.5rem;
+    }
+    .swatch {
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #E4E4E7;
+    }
+    .swatch-color { height: 36px; }
+    .swatch-info {
+      padding: 0.3rem 0.4rem;
+      background: #FAFAFA;
+      font-size: 0.65rem;
+    }
+    .swatch-name { font-weight: 600; color: #3F3F46; }
+    .swatch-hex { color: #A1A1AA; font-family: monospace; }
+
+    .css-block {
+      background: #18181B;
+      color: #E4E4E7;
+      border-radius: 8px;
+      padding: 0.85rem;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 0.7rem;
+      line-height: 1.6;
+      overflow-x: auto;
+      white-space: pre;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .css-block .prop { color: #93C5FD; }
+    .css-block .val { color: #86EFAC; }
+
+    .copy-btn {
+      margin-top: 0.6rem;
+      padding: 0.45rem 0.9rem;
+      background: #18181B;
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: #3F3F46; }
+    .copy-btn.copied { background: #16A34A; }
+
+    .ux-card h4 {
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: #18181B;
+    }
+    .ux-card .mood {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #F4F4F5;
+      color: #52525B;
+      margin-bottom: 0.75rem;
+    }
+    .ux-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+    .ux-list li {
+      font-size: 0.8rem;
+      color: #3F3F46;
+      padding-left: 0.75rem;
+      border-left: 3px solid #E4E4E7;
+    }
+    .ux-list strong {
+      display: block;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #A1A1AA;
+      margin-bottom: 0.15rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="page-header">
+    <h1>Adan Pradan — Color Theme Showcase</h1>
+    <p>9 e-commerce colour themes: 7 VIBGYOR spectrum palettes plus Light and Dark neutrals. Click a theme to preview it live.</p>
+  </header>
+
+  <section class="selector-section">
+    <div class="selector-label">VIBGYOR Spectrum</div>
+    <div class="theme-pills" id="vibgyor-pills">
+      <button class="theme-pill active" data-theme="violet" style="--pill-color:#7C3AED">
+        <span class="pill-dot" style="background:#7C3AED"></span> Violet
+      </button>
+      <button class="theme-pill" data-theme="indigo" style="--pill-color:#4F46E5">
+        <span class="pill-dot" style="background:#4F46E5"></span> Indigo
+      </button>
+      <button class="theme-pill" data-theme="blue" style="--pill-color:#2563EB">
+        <span class="pill-dot" style="background:#2563EB"></span> Blue
+      </button>
+      <button class="theme-pill" data-theme="green" style="--pill-color:#16A34A">
+        <span class="pill-dot" style="background:#16A34A"></span> Green
+      </button>
+      <button class="theme-pill" data-theme="yellow" style="--pill-color:#CA8A04">
+        <span class="pill-dot" style="background:#CA8A04"></span> Yellow
+      </button>
+      <button class="theme-pill" data-theme="orange" style="--pill-color:#EA580C">
+        <span class="pill-dot" style="background:#EA580C"></span> Orange
+      </button>
+      <button class="theme-pill" data-theme="red" style="--pill-color:#DC2626">
+        <span class="pill-dot" style="background:#DC2626"></span> Red
+      </button>
+    </div>
+    <div class="selector-label">Neutral Themes</div>
+    <div class="theme-pills" id="neutral-pills">
+      <button class="theme-pill" data-theme="light" style="--pill-color:#18181B">
+        <span class="pill-dot" style="background:#FAFAFA;border:1px solid #D4D4D8"></span> Light
+      </button>
+      <button class="theme-pill" data-theme="dark" style="--pill-color:#FAFAFA">
+        <span class="pill-dot" style="background:#09090B;border:1px solid #52525B"></span> Dark
+      </button>
+    </div>
+  </section>
+
+  <div class="main-layout">
+    <!-- Live preview -->
+    <div class="preview-panel">
+      <div class="preview-label">Live Storefront Preview</div>
+      <div class="storefront" id="storefront">
+        <nav class="store-nav">
+          <div class="store-logo">Adan Pradan</div>
+          <div class="store-nav-links">
+            <a href="#">Shop</a>
+            <a href="#">Categories</a>
+            <a href="#">Deals</a>
+          </div>
+          <div class="store-cart">
+            <span>🛒</span> Cart <span class="cart-badge">3</span>
+          </div>
+        </nav>
+
+        <section class="store-hero">
+          <h2>Summer Collection 2026</h2>
+          <p>Discover handpicked products with up to 40% off this season.</p>
+          <div class="hero-actions">
+            <button class="btn btn-primary">Shop Now</button>
+            <button class="btn btn-secondary">View Deals</button>
+          </div>
+        </section>
+
+        <div class="product-grid">
+          <article class="product-card">
+            <div class="product-img">
+              <span class="sale-badge">20% OFF</span>
+              👕
+            </div>
+            <div class="product-body">
+              <div class="product-title">Classic Cotton Tee</div>
+              <div>
+                <span class="product-price">₹799</span>
+                <span class="product-mrp">₹999</span>
+              </div>
+              <div class="stock-label stock-in">● In stock</div>
+              <button class="btn btn-primary btn-add">Add to Cart</button>
+            </div>
+          </article>
+
+          <article class="product-card">
+            <div class="product-img">
+              <span class="sale-badge">20% OFF</span>
+              👟
+            </div>
+            <div class="product-body">
+              <div class="product-title">Running Sneakers</div>
+              <div>
+                <span class="product-price">₹2,399</span>
+                <span class="product-mrp">₹2,999</span>
+              </div>
+              <div class="stock-label stock-low">● Only 2 left</div>
+              <button class="btn btn-primary btn-add">Add to Cart</button>
+            </div>
+          </article>
+
+          <article class="product-card">
+            <div class="product-img">
+              🎒
+            </div>
+            <div class="product-body">
+              <div class="product-title">Travel Backpack</div>
+              <div>
+                <span class="product-price">₹1,499</span>
+                <span class="product-mrp">₹1,499</span>
+              </div>
+              <div class="stock-label stock-out">● Out of stock</div>
+              <button class="btn btn-primary btn-add" disabled>Add to Cart</button>
+            </div>
+          </article>
+        </div>
+
+        <footer class="store-footer">
+          © 2026 Adan Pradan · Free shipping on orders above ₹999
+        </footer>
+      </div>
+    </div>
+
+    <!-- Details -->
+    <div class="details-panel">
+      <div class="card">
+        <h3>Color Palette</h3>
+        <div class="swatch-grid" id="swatch-grid"></div>
+      </div>
+
+      <div class="card">
+        <h3>CSS Variables</h3>
+        <div class="css-block" id="css-block"></div>
+        <button class="copy-btn" id="copy-btn">Copy CSS</button>
+      </div>
+
+      <div class="card ux-card" id="ux-card">
+        <h3>UX Recommendation</h3>
+        <div id="ux-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const THEMES = {
+      violet: {
+        name: "Violet",
+        mood: "Elegant · Creative · Premium",
+        tokens: {
+          "--primary": "#7C3AED", "--primary-hover": "#6D28D9", "--secondary": "#8B5CF6",
+          "--background": "#FAF5FF", "--surface": "#FFFFFF", "--text": "#1E1B4B",
+          "--text-muted": "#6B7280", "--border": "#E9D5FF", "--accent": "#A855F7",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Beauty, cosmetics, luxury fashion, artisan jewellery, premium gifting",
+          cta: "Use violet for primary CTAs and nav accents. Keep sale badges on the accent shade to avoid overwhelming the page.",
+          accessibility: "Text on white surface passes WCAG AA (contrast ~12:1). Ensure white text on primary buttons — ratio ~4.6:1.",
+          pairing: "Pair with soft lavender surfaces and generous whitespace. Avoid purple-heavy product photos that clash with the brand hue."
+        }
+      },
+      indigo: {
+        name: "Indigo",
+        mood: "Trustworthy · Modern · Tech-forward",
+        tokens: {
+          "--primary": "#4F46E5", "--primary-hover": "#4338CA", "--secondary": "#6366F1",
+          "--background": "#EEF2FF", "--surface": "#FFFFFF", "--text": "#1E1B4B",
+          "--text-muted": "#6B7280", "--border": "#C7D2FE", "--accent": "#818CF8",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Electronics, gadgets, SaaS subscriptions, smart home, gaming peripherals",
+          cta: "Indigo works well for 'Buy Now' and 'Compare' buttons. Use secondary indigo for informational links.",
+          accessibility: "Strong contrast on white backgrounds. Primary button white-on-indigo meets AA for large text.",
+          pairing: "Complements cool-toned product photography. Works with subtle grid layouts and icon-heavy navigation."
+        }
+      },
+      blue: {
+        name: "Blue",
+        mood: "Reliable · Calm · Universal",
+        tokens: {
+          "--primary": "#2563EB", "--primary-hover": "#1D4ED8", "--secondary": "#3B82F6",
+          "--background": "#EFF6FF", "--surface": "#FFFFFF", "--text": "#1E3A5F",
+          "--text-muted": "#6B7280", "--border": "#BFDBFE", "--accent": "#60A5FA",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "General retail, home goods, furniture, books, everyday essentials",
+          cta: "Blue is the safest CTA colour — high trust without aggression. Ideal for 'Add to Cart' site-wide.",
+          accessibility: "Excellent readability. One of the most accessible spectrum choices for UI text and buttons.",
+          pairing: "Neutral product imagery pops against blue-tinted backgrounds. Avoid pairing with overly warm orange packaging."
+        }
+      },
+      green: {
+        name: "Green",
+        mood: "Fresh · Natural · Sustainable",
+        tokens: {
+          "--primary": "#16A34A", "--primary-hover": "#15803D", "--secondary": "#22C55E",
+          "--background": "#F0FDF4", "--surface": "#FFFFFF", "--text": "#14532D",
+          "--text-muted": "#6B7280", "--border": "#BBF7D0", "--accent": "#4ADE80",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Organic groceries, wellness, supplements, eco-friendly products, outdoor gear",
+          cta: "Green CTAs feel affirmative and guilt-free. Reserve brighter accent green for 'Eco-certified' badges.",
+          accessibility: "Dark green text on mint background passes AA. Use white text on primary green buttons.",
+          pairing: "Earthy product photography and botanical imagery reinforce the theme. Avoid neon green UI elements."
+        }
+      },
+      yellow: {
+        name: "Yellow",
+        mood: "Energetic · Optimistic · Playful",
+        tokens: {
+          "--primary": "#CA8A04", "--primary-hover": "#A16207", "--secondary": "#EAB308",
+          "--background": "#FEFCE8", "--surface": "#FFFFFF", "--text": "#422006",
+          "--text-muted": "#78716C", "--border": "#FEF08A", "--accent": "#FACC15",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Flash sales, kids' products, toys, stationery, budget deals, festive campaigns",
+          cta: "Use gold/amber for CTAs — never pure yellow on white (fails contrast). Bright yellow reserved for badges only.",
+          accessibility: "Requires dark text on yellow accents. Primary buttons use white text on amber (#CA8A04) for AA compliance.",
+          pairing: "Works with bold illustrations and emoji-style icons. Limit yellow to 15–20% of visible area to prevent eye strain."
+        }
+      },
+      orange: {
+        name: "Orange",
+        mood: "Warm · Urgent · Appetising",
+        tokens: {
+          "--primary": "#EA580C", "--primary-hover": "#C2410C", "--secondary": "#F97316",
+          "--background": "#FFF7ED", "--surface": "#FFFFFF", "--text": "#431407",
+          "--text-muted": "#78716C", "--border": "#FED7AA", "--accent": "#FB923C",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Food delivery, sports equipment, adventure gear, impulse-buy categories",
+          cta: "Orange drives action — perfect for 'Order Now' and 'Limited Offer'. High conversion for time-sensitive promos.",
+          accessibility: "White on orange primary passes AA. Use dark brown text (#431407) for body copy on cream backgrounds.",
+          pairing: "Warm food photography looks appetising. Pair with rounded buttons and friendly micro-copy."
+        }
+      },
+      red: {
+        name: "Red",
+        mood: "Bold · High-conversion · Urgent",
+        tokens: {
+          "--primary": "#DC2626", "--primary-hover": "#B91C1C", "--secondary": "#EF4444",
+          "--background": "#FEF2F2", "--surface": "#FFFFFF", "--text": "#450A0A",
+          "--text-muted": "#78716C", "--border": "#FECACA", "--accent": "#F87171",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Fashion, clearance sales, Valentine's gifting, limited drops, outlet stores",
+          cta: "Use red sparingly on navigation — reserve for sale badges, countdown timers, and 'Buy Now' on deal pages.",
+          accessibility: "Don't rely on red alone for errors (combine with icons). White on red buttons passes AA.",
+          pairing: "High-impact hero banners work well. Balance red with plenty of white space so the store doesn't feel alarming."
+        }
+      },
+      light: {
+        name: "Light",
+        mood: "Minimal · Clean · Versatile",
+        tokens: {
+          "--primary": "#18181B", "--primary-hover": "#27272A", "--secondary": "#52525B",
+          "--background": "#FAFAFA", "--surface": "#FFFFFF", "--text": "#18181B",
+          "--text-muted": "#71717A", "--border": "#E4E4E7", "--accent": "#3F3F46",
+          "--success": "#16A34A", "--warning": "#D97706", "--error": "#DC2626"
+        },
+        ux: {
+          categories: "Multi-category marketplaces, minimalist brands, editorial-style shops, B2B catalogues",
+          cta: "Black/charcoal CTAs feel premium and understated. Let product images provide the colour.",
+          accessibility: "Highest overall contrast ratios. Ideal default for accessibility-first storefronts.",
+          pairing: "Works with any product photography. Add a single accent colour per campaign without changing the base theme."
+        }
+      },
+      dark: {
+        name: "Dark",
+        mood: "Premium · OLED-friendly · Night mode",
+        tokens: {
+          "--primary": "#FAFAFA", "--primary-hover": "#E4E4E7", "--secondary": "#A1A1AA",
+          "--background": "#09090B", "--surface": "#18181B", "--text": "#FAFAFA",
+          "--text-muted": "#A1A1AA", "--border": "#27272A", "--accent": "#D4D4D8",
+          "--success": "#4ADE80", "--warning": "#FBBF24", "--error": "#F87171"
+        },
+        ux: {
+          categories: "Electronics, luxury watches, gaming, photography gear, premium night-shopping experiences",
+          cta: "Inverted CTAs (light button on dark bg) feel premium. Use accent grey for secondary actions.",
+          accessibility: "Reduce eye strain in low light. Semantic colours are brightened for dark surfaces. Test muted text at 4.5:1 minimum.",
+          pairing: "High-contrast product shots on dark cards create a gallery feel. Avoid pure black (#000) — use #09090B for depth."
+        }
+      }
+    };
+
+    const TOKEN_LABELS = {
+      "--primary": "Primary",
+      "--primary-hover": "Primary Hover",
+      "--secondary": "Secondary",
+      "--background": "Background",
+      "--surface": "Surface",
+      "--text": "Text",
+      "--text-muted": "Text Muted",
+      "--border": "Border",
+      "--accent": "Accent",
+      "--success": "Success",
+      "--warning": "Warning",
+      "--error": "Error"
+    };
+
+    let currentTheme = "violet";
+
+    function renderSwatches(theme) {
+      const grid = document.getElementById("swatch-grid");
+      grid.innerHTML = Object.entries(theme.tokens)
+        .map(([key, val]) => `
+          <div class="swatch">
+            <div class="swatch-color" style="background:${val}"></div>
+            <div class="swatch-info">
+              <div class="swatch-name">${TOKEN_LABELS[key]}</div>
+              <div class="swatch-hex">${val}</div>
+            </div>
+          </div>`)
+        .join("");
+    }
+
+    function renderCssBlock(theme) {
+      const block = document.getElementById("css-block");
+      const lines = Object.entries(theme.tokens)
+        .map(([k, v]) => `<span class="prop">${k}</span>: <span class="val">${v}</span>;`)
+        .join("\n");
+      block.innerHTML = `:root {\n${lines}\n}`;
+    }
+
+    function getCssText(theme) {
+      const lines = Object.entries(theme.tokens)
+        .map(([k, v]) => `  ${k}: ${v};`)
+        .join("\n");
+      return `:root {\n${lines}\n}`;
+    }
+
+    function renderUx(theme) {
+      const el = document.getElementById("ux-content");
+      el.innerHTML = `
+        <h4>${theme.name} Theme</h4>
+        <span class="mood">${theme.mood}</span>
+        <ul class="ux-list">
+          <li><strong>Ideal Categories</strong>${theme.ux.categories}</li>
+          <li><strong>CTA Guidance</strong>${theme.ux.cta}</li>
+          <li><strong>Accessibility</strong>${theme.ux.accessibility}</li>
+          <li><strong>Pairing Tip</strong>${theme.ux.pairing}</li>
+        </ul>`;
+    }
+
+    function setTheme(name) {
+      currentTheme = name;
+      document.documentElement.setAttribute("data-theme", name);
+      document.querySelectorAll(".theme-pill").forEach(p => {
+        p.classList.toggle("active", p.dataset.theme === name);
+      });
+      const theme = THEMES[name];
+      renderSwatches(theme);
+      renderCssBlock(theme);
+      renderUx(theme);
+      document.getElementById("copy-btn").classList.remove("copied");
+      document.getElementById("copy-btn").textContent = "Copy CSS";
+    }
+
+    document.querySelectorAll(".theme-pill").forEach(pill => {
+      pill.addEventListener("click", () => setTheme(pill.dataset.theme));
+    });
+
+    document.getElementById("copy-btn").addEventListener("click", async () => {
+      const btn = document.getElementById("copy-btn");
+      try {
+        await navigator.clipboard.writeText(getCssText(THEMES[currentTheme]));
+        btn.textContent = "Copied!";
+        btn.classList.add("copied");
+      } catch {
+        btn.textContent = "Copy failed";
+      }
+    });
+
+    setTheme("violet");
+  </script>
+</body>
+</html>
