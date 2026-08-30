@@ -70,7 +70,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-14 max-w-5xl items-center px-4 sm:px-6">
+      <div className="mx-auto flex h-14 max-w-6xl items-center px-4 sm:px-6">
         <span className="text-lg font-bold tracking-tight text-primary">
           Adan Pradan
         </span>

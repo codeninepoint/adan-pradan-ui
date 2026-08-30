@@ -186,3 +186,19 @@ body {
 [data-theme="dark"] .primary-btn-icon {
   filter: brightness(0);
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+.landing-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+@media (min-width: 640px) {
+  .landing-section-title {
+    font-size: 1.5rem;
+  }
+}
