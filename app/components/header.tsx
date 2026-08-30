@@ -1,11 +1,72 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { SettingsPanel } from "@/components/settings-panel";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ProfileMenu } from "@/components/profile-menu";
+import { ThemePreferencesPanel } from "@/components/theme-preferences-panel";
+
+const HOVER_CLOSE_DELAY_MS = 150;
 
 export function Header() {
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [themePanelOpen, setThemePanelOpen] = useState(false);
+  const profileAreaRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseTimeout = useCallback(() => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+  }, []);
+
+  const handleMouseEnter = useCallback(() => {
+    if (themePanelOpen) return;
+    clearCloseTimeout();
+    setProfileOpen(true);
+  }, [clearCloseTimeout, themePanelOpen]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (themePanelOpen) return;
+    clearCloseTimeout();
+    closeTimeoutRef.current = setTimeout(() => {
+      setProfileOpen(false);
+    }, HOVER_CLOSE_DELAY_MS);
+  }, [clearCloseTimeout, themePanelOpen]);
+
+  const handleAvatarClick = useCallback(() => {
+    if (window.matchMedia("(pointer: coarse)").matches) {
+      if (themePanelOpen) return;
+      setProfileOpen((prev) => !prev);
+    }
+  }, [themePanelOpen]);
+
+  const openThemePanel = useCallback(() => {
+    setProfileOpen(false);
+    setThemePanelOpen(true);
+  }, []);
+
+  const closeThemePanel = useCallback(() => {
+    setThemePanelOpen(false);
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      if (themePanelOpen) {
+        closeThemePanel();
+      } else if (profileOpen) {
+        setProfileOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [themePanelOpen, profileOpen, closeThemePanel]);
+
+  useEffect(() => {
+    return () => clearCloseTimeout();
+  }, [clearCloseTimeout]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-surface/95 backdrop-blur-sm">
@@ -16,22 +77,33 @@ export function Header() {
 
         <div className="flex-1" />
 
-        <div className="relative">
+        <div
+          ref={profileAreaRef}
+          className="relative"
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <ThemePreferencesPanel
+            open={themePanelOpen}
+            onClose={closeThemePanel}
+            profileAreaRef={profileAreaRef}
+          />
+
           <button
             ref={triggerRef}
             type="button"
-            onClick={() => setSettingsOpen((prev) => !prev)}
+            onClick={handleAvatarClick}
             className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
-            aria-label="Open settings"
-            aria-expanded={settingsOpen}
+            aria-label="Open profile menu"
+            aria-haspopup="menu"
+            aria-expanded={profileOpen || themePanelOpen}
           >
             AP
           </button>
 
-          <SettingsPanel
-            open={settingsOpen}
-            onClose={() => setSettingsOpen(false)}
-            triggerRef={triggerRef}
+          <ProfileMenu
+            open={profileOpen && !themePanelOpen}
+            onThemePreferencesClick={openThemePanel}
           />
         </div>
       </div>

@@ -1,20 +1,20 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { THEMES } from "@/lib/themes";
 import { useTheme } from "@/components/theme-provider";
+import { THEMES } from "@/lib/themes";
 
-type SettingsPanelProps = {
+type ThemePreferencesPanelProps = {
   open: boolean;
   onClose: () => void;
-  triggerRef: React.RefObject<HTMLButtonElement | null>;
+  profileAreaRef: React.RefObject<HTMLDivElement | null>;
 };
 
-export function SettingsPanel({
+export function ThemePreferencesPanel({
   open,
   onClose,
-  triggerRef,
-}: SettingsPanelProps) {
+  profileAreaRef,
+}: ThemePreferencesPanelProps) {
   const { theme, setTheme } = useTheme();
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -28,7 +28,7 @@ export function SettingsPanel({
     function handleClickOutside(e: MouseEvent) {
       const target = e.target as Node;
       if (panelRef.current?.contains(target)) return;
-      if (triggerRef.current?.contains(target)) return;
+      if (profileAreaRef.current?.contains(target)) return;
       onClose();
     }
 
@@ -38,7 +38,7 @@ export function SettingsPanel({
       document.removeEventListener("keydown", handleKeyDown);
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [open, onClose, triggerRef]);
+  }, [open, onClose, profileAreaRef]);
 
   if (!open) return null;
 
@@ -48,18 +48,14 @@ export function SettingsPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border bg-surface p-4 shadow-lg"
+      className="absolute right-0 top-full z-50 mt-2 w-64 rounded-xl border border-border bg-surface p-4 shadow-lg"
       role="dialog"
-      aria-label="Settings"
+      aria-label="Theme preferences"
     >
-      <h2 className="text-sm font-semibold text-foreground">Settings</h2>
+      <h2 className="text-sm font-semibold text-foreground">Theme Preferences</h2>
 
       <section className="mt-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">
-          Appearance
-        </h3>
-
-        <p className="mt-3 text-xs font-medium text-muted">VIBGYOR</p>
+        <p className="text-xs font-medium text-muted">VIBGYOR</p>
         <ul className="mt-2 flex flex-col gap-1">
           {vibgyorThemes.map((t) => (
             <li key={t.id}>
