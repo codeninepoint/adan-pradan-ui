@@ -1,0 +1,8 @@
+services:
+  ui:
+    build:
+      context: ./app
+      dockerfile: Dockerfile
+    image: adan-pradan-ui:latest
+    ports:
+      - "3000:3000"
