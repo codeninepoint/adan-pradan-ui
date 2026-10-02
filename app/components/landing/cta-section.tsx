@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { cta } from "@/lib/landing-content";
+import { useAuth } from "@/components/auth-provider";
 
 export function CtaSection() {
+  const { ready, signedIn } = useAuth();
+
   return (
     <section className="-mx-4 border-y border-border bg-[var(--hero-tint)] px-4 py-14 sm:-mx-6 sm:px-6 sm:py-16">
       <div className="mx-auto max-w-2xl text-center">
@@ -13,24 +18,34 @@ export function CtaSection() {
         </p>
 
         <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row sm:flex-wrap">
+          {ready && !signedIn && (
+            <Link
+              href="/signup"
+              className="inline-flex h-14 w-full items-center justify-center rounded-full bg-primary px-10 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-xl sm:w-auto"
+            >
+              {cta.primaryLabel}
+            </Link>
+          )}
+          {ready && signedIn && (
+            <Link
+              href="/app"
+              className="inline-flex h-14 w-full items-center justify-center rounded-full bg-primary px-10 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-xl sm:w-auto"
+            >
+              Open dashboard →
+            </Link>
+          )}
           <Link
-            href="/signup"
-            className="inline-flex h-14 w-full items-center justify-center rounded-full bg-primary px-10 text-lg font-bold text-primary-foreground shadow-lg transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-xl sm:w-auto"
-          >
-            {cta.primaryLabel}
-          </Link>
-          <button
-            type="button"
+            href={signedIn ? "/app/vendor" : "/login"}
             className="inline-flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:shadow-md sm:w-auto"
           >
             {cta.secondaryLabels[0]}
-          </button>
-          <button
-            type="button"
+          </Link>
+          <Link
+            href={signedIn ? "/app" : "/login"}
             className="inline-flex h-12 w-full items-center justify-center rounded-full border border-border bg-surface px-6 text-sm font-semibold text-foreground transition-all hover:-translate-y-0.5 hover:shadow-md sm:w-auto"
           >
             {cta.secondaryLabels[1]}
-          </button>
+          </Link>
         </div>
       </div>
     </section>

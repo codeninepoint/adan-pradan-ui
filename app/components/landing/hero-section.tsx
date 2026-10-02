@@ -1,7 +1,12 @@
+"use client";
+
 import Link from "next/link";
 import { hero } from "@/lib/landing-content";
+import { useAuth } from "@/components/auth-provider";
 
 export function HeroSection() {
+  const { ready, signedIn } = useAuth();
+
   return (
     <section className="relative overflow-hidden rounded-2xl border border-border bg-[var(--hero-tint)] p-8 sm:p-12">
       <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
@@ -17,14 +22,26 @@ export function HeroSection() {
         <p className="mt-5 max-w-xl text-base leading-relaxed text-muted sm:text-lg">
           {hero.subtext}
         </p>
-        <div className="mt-10">
-          <Link
-            href="/signup"
-            className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-primary-foreground shadow-md transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-lg"
-          >
-            Create account →
-          </Link>
-        </div>
+        {ready && !signedIn && (
+          <div className="mt-10">
+            <Link
+              href="/signup"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-primary-foreground shadow-md transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-lg"
+            >
+              Create account →
+            </Link>
+          </div>
+        )}
+        {ready && signedIn && (
+          <div className="mt-10">
+            <Link
+              href="/app"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 text-sm font-bold text-primary-foreground shadow-md transition-all hover:scale-105 hover:bg-primary-hover hover:shadow-lg"
+            >
+              Go to dashboard →
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

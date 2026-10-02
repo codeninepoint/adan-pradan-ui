@@ -3,18 +3,22 @@
 type ProfileMenuProps = {
   open: boolean;
   onThemePreferencesClick: () => void;
+  onSignOut?: () => void;
 };
 
 const MENU_LINKS = [
-  { label: "Orders", href: "#" },
-  { label: "Wishlist", href: "#" },
-  { label: "Contact Us", href: "#" },
-  { label: "Your Account", href: "#" },
+  { label: "Dashboard", href: "/app" },
+  { label: "Members & roles", href: "/app/members" },
+  { label: "Org upgrade", href: "/app/org" },
+  { label: "Service accounts", href: "/app/service-accounts" },
+  { label: "Vendor", href: "/app/vendor" },
+  { label: "Your Account", href: "/app" },
 ] as const;
 
 export function ProfileMenu({
   open,
   onThemePreferencesClick,
+  onSignOut,
 }: ProfileMenuProps) {
   if (!open) return null;
 
@@ -47,6 +51,18 @@ export function ProfileMenu({
             Set Theme Preferences
           </button>
         </li>
+        {onSignOut && (
+          <li role="none">
+            <button
+              type="button"
+              role="menuitem"
+              onClick={onSignOut}
+              className="block w-full px-4 py-2.5 text-left text-sm text-error transition-colors hover:bg-[var(--hero-tint)]"
+            >
+              Sign out
+            </button>
+          </li>
+        )}
       </ul>
     </div>
   );
