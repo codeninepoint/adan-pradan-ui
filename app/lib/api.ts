@@ -482,6 +482,12 @@ export const serviceAccountsApi = {
 };
 
 export const vendorApi = {
+  forOrg: (orgId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ vendor_id: string; org_id: string; status: string; legal_name: string }>(
+      `/api/v1/organizations/${orgId}/vendor`,
+      { ensureAccessToken, method: "GET" },
+    ),
+
   eligibility: (
     orgId: string,
     ensureAccessToken: (force?: boolean) => Promise<string | null>,
@@ -573,5 +579,487 @@ export const tenantMembersApi = {
       tenantId,
       method: "POST",
       body,
+    }),
+};
+
+export type CartLine = {
+  line_id: string;
+  offering_id: string;
+  product_id: string;
+  product_name: string;
+  plan_name: string;
+  quantity: number;
+  unit_price: number;
+  fulfilment_type: string;
+  billing_period: string;
+};
+
+export type CartResponse = { cart_id: string | null; status: string; lines: CartLine[] };
+
+export type AddressItem = {
+  address_id: string;
+  label: string;
+  contact_name: string;
+  line1: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+};
+
+export type OrderSummary = {
+  order_id: string;
+  status: string;
+  payment_method: string;
+  placed_at: string;
+  line_count: number;
+  total: number;
+};
+
+export type OrderDetail = {
+  order_id: string;
+  status: string;
+  payment_method: string;
+  address_id: string | null;
+  placed_at: string;
+  lines: {
+    line_id: string;
+    product_name: string;
+    plan_name: string;
+    quantity: number;
+    fulfilment_type: string;
+    unit_price: number;
+    status: string;
+  }[];
+};
+
+export type CatalogItem = {
+  offering_id: string;
+  product_id: string;
+  product_name: string;
+  vendor: string;
+  vendor_id: string;
+  plan_name: string;
+  price_usd: number;
+  billing_period: string;
+  fulfilment_type: string;
+  category: string;
+};
+
+export const marketplaceApi = {
+  plugins: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      plugins: {
+        plugin_id: string;
+        name: string;
+        slug: string;
+        status: string;
+        latest_version: string | null;
+        latest_version_status: string | null;
+      }[];
+    }>(`/api/v1/vendors/${vendorId}/plugins`, { ensureAccessToken, method: "GET" }),
+
+  offerings: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      offerings: {
+        offering_id: string;
+        product_id: string;
+        product_name: string;
+        plan_name: string;
+        status: string;
+      }[];
+    }>(`/api/v1/vendors/${vendorId}/offerings`, { ensureAccessToken, method: "GET" }),
+
+  portal: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      vendor_id: string;
+      status: string;
+      product_count: number;
+      offering_count: number;
+      active_installs: number;
+      pending_plugin_reviews: number;
+    }>(`/api/v1/vendors/${vendorId}/portal`, { ensureAccessToken, method: "GET" }),
+
+  registerPlugin: (
+    vendorId: string,
+    body: { name: string; slug: string; category: string; short_description: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ plugin_id: string; slug: string; status: string }>(
+      `/api/v1/vendors/${vendorId}/plugins`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
+  submitVersion: (
+    pluginId: string,
+    body: { version: string; artifact_url: string; changelog: string; sbom_url: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ version_id: string; status: string }>(`/api/v1/plugins/${pluginId}/versions`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  declareCapabilities: (
+    versionId: string,
+    capabilities: { scope: string; justification: string }[],
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ capability_count: number }>(
+      `/api/v1/plugins/versions/${versionId}/capabilities`,
+      { ensureAccessToken, method: "PUT", body: { capabilities } },
+    ),
+
+  pendingReviews: (ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      items: {
+        version_id: string;
+        plugin_id: string;
+        plugin_slug: string;
+        version: string;
+        status: string;
+        vendor_id: string;
+        vendor_name: string;
+        claimed_by: string | null;
+      }[];
+    }>("/api/v1/admin/plugin-reviews", { ensureAccessToken, method: "GET" }),
+
+  decideVersion: (
+    versionId: string,
+    decision: "approved" | "rejected",
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/admin/plugin-reviews/${versionId}/decision`, {
+      ensureAccessToken,
+      method: "POST",
+      body: { decision },
+    }),
+
+  createProduct: (
+    vendorId: string,
+    body: {
+      name: string;
+      description: string;
+      plugin_id: string;
+      fulfilment_type: string;
+    },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ product_id: string; status: string }>(`/api/v1/vendors/${vendorId}/products`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  createOffering: (
+    productId: string,
+    body: { plan_name: string; billing_period: string; price_usd: number },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ offering_id: string; status: string }>(`/api/v1/products/${productId}/offerings`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  publishOffering: (
+    offeringId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/offerings/${offeringId}/publish`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  catalog: (params?: {
+    q?: string;
+    category?: string;
+    sort?: string;
+    verified_only?: boolean;
+    price_min?: string;
+    price_max?: string;
+  }) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set("q", params.q);
+    if (params?.category) search.set("category", params.category);
+    if (params?.sort) search.set("sort", params.sort);
+    if (params?.verified_only) search.set("verified_only", "true");
+    if (params?.price_min) search.set("price_min", params.price_min);
+    if (params?.price_max) search.set("price_max", params.price_max);
+    const query = search.toString();
+    return api<{ results: CatalogItem[]; total: number }>(
+      `/api/v1/marketplace/catalog${query ? `?${query}` : ""}`,
+    );
+  },
+
+  product: (productId: string) =>
+    api<{
+      product_id: string;
+      name: string;
+      description: string;
+      fulfilment_type: string;
+      vendor: string;
+      category: string;
+      capabilities: string[];
+      offerings: { offering_id: string; plan_name: string; price_usd: number; billing_period: string }[];
+    }>(`/api/v1/marketplace/products/${productId}`),
+
+  review: (versionId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      plugin: string;
+      version: string;
+      status: string;
+      scan_status: string;
+      requested_capabilities: string[];
+      sbom_url: string;
+      changelog: string;
+      review_notes: string;
+    }>(`/api/v1/plugins/versions/${versionId}/review`, { ensureAccessToken, method: "GET" }),
+
+  claimReview: (versionId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ claimed_by: string }>(`/api/v1/admin/plugin-reviews/${versionId}/claim`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  requestChanges: (
+    versionId: string,
+    notes: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/plugins/versions/${versionId}/request-changes`, {
+      ensureAccessToken,
+      method: "POST",
+      body: { notes },
+    }),
+
+  adminVendors: (
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    status?: string,
+  ) =>
+    apiAuthed<{
+      results: {
+        vendor_id: string;
+        legal_name: string;
+        status: string;
+        product_count: number;
+        active_installs: number;
+      }[];
+    }>(`/api/v1/admin/vendors${status ? `?status=${encodeURIComponent(status)}` : ""}`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  suspendVendor: (
+    vendorId: string,
+    reason: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string; offerings_unpublished: number }>(
+      `/api/v1/admin/vendors/${vendorId}/suspend`,
+      { ensureAccessToken, method: "POST", body: { reason } },
+    ),
+
+  install: (
+    tenantId: string,
+    body: { offering_id: string; accepted_capabilities: string[] },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ installation_id: string; status: string }>(
+      `/api/v1/tenants/${tenantId}/installations`,
+      { ensureAccessToken, tenantId, method: "POST", body },
+    ),
+
+  home: () =>
+    api<{ categories: string[]; rails: Record<string, CatalogItem[]> }>("/api/v1/marketplace/home"),
+
+  wishlist: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      items: { product_id: string; name: string; vendor_name: string; fulfilment_type: string }[];
+    }>(`/api/v1/tenants/${tenantId}/wishlist`, { ensureAccessToken, tenantId, method: "GET" }),
+
+  saveWishlist: (
+    tenantId: string,
+    productId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ items: { product_id: string }[] }>(`/api/v1/tenants/${tenantId}/wishlist`, {
+      ensureAccessToken,
+      tenantId,
+      method: "POST",
+      body: { product_id: productId },
+    }),
+
+  removeWishlist: (
+    tenantId: string,
+    productId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/tenants/${tenantId}/wishlist/${productId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "DELETE",
+    }),
+
+  cart: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<CartResponse>(`/api/v1/tenants/${tenantId}/cart`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  addCartLine: (
+    tenantId: string,
+    body: { offering_id: string; quantity: number },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CartResponse>(`/api/v1/tenants/${tenantId}/cart/lines`, {
+      ensureAccessToken,
+      tenantId,
+      method: "POST",
+      body,
+    }),
+
+  updateCartLine: (
+    tenantId: string,
+    lineId: string,
+    quantity: number,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CartResponse>(`/api/v1/tenants/${tenantId}/cart/lines/${lineId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "PATCH",
+      body: { quantity },
+    }),
+
+  removeCartLine: (
+    tenantId: string,
+    lineId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CartResponse>(`/api/v1/tenants/${tenantId}/cart/lines/${lineId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "DELETE",
+    }),
+
+  addresses: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ addresses: AddressItem[] }>(`/api/v1/tenants/${tenantId}/addresses`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  createAddress: (
+    tenantId: string,
+    body: Omit<AddressItem, "address_id">,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<AddressItem>(`/api/v1/tenants/${tenantId}/addresses`, {
+      ensureAccessToken,
+      tenantId,
+      method: "POST",
+      body,
+    }),
+
+  updateAddress: (
+    tenantId: string,
+    addressId: string,
+    body: Omit<AddressItem, "address_id">,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<AddressItem>(`/api/v1/tenants/${tenantId}/addresses/${addressId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "PATCH",
+      body,
+    }),
+
+  deleteAddress: (
+    tenantId: string,
+    addressId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/tenants/${tenantId}/addresses/${addressId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "DELETE",
+    }),
+
+  placeOrder: (
+    tenantId: string,
+    body: { address_id?: string; payment_method: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ order_id: string; status: string; line_count: number }>(
+      `/api/v1/tenants/${tenantId}/orders`,
+      { ensureAccessToken, tenantId, method: "POST", body },
+    ),
+
+  orders: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ orders: OrderSummary[] }>(`/api/v1/tenants/${tenantId}/orders`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  order: (orderId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<OrderDetail>(`/api/v1/orders/${orderId}`, { ensureAccessToken, method: "GET" }),
+
+  requestReturn: (
+    orderId: string,
+    body: { line_id: string; reason: string; notes?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ return_id: string; status: string }>(`/api/v1/orders/${orderId}/returns`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  returns: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      returns: { return_id: string; order_id: string; product_name: string; reason: string; status: string }[];
+    }>(`/api/v1/tenants/${tenantId}/returns`, { ensureAccessToken, tenantId, method: "GET" }),
+
+  subscriptions: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      subscriptions: {
+        offering_id: string;
+        product_name: string;
+        plan_name: string;
+        status: string;
+        next_billing_at: string | null;
+      }[];
+      active_count: number;
+    }>(`/api/v1/tenants/${tenantId}/subscriptions`, { ensureAccessToken, tenantId, method: "GET" }),
+
+  cancelSubscription: (
+    tenantId: string,
+    offeringId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(
+      `/api/v1/tenants/${tenantId}/subscriptions/${offeringId}/cancel`,
+      { ensureAccessToken, tenantId, method: "POST" },
+    ),
+
+  entitlements: (
+    tenantId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{
+      entitlements: {
+        entitlement_id: string;
+        offering: string;
+        status: string;
+        installation_status: string;
+      }[];
+    }>(`/api/v1/tenants/${tenantId}/entitlements`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
     }),
 };

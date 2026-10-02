@@ -211,6 +211,26 @@ function DashboardBody() {
             Vendor
           </Link>
           <Link
+            href="/app/plugins"
+            className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
+          >
+            Plugins
+          </Link>
+          <Link
+            href="/app/marketplace"
+            className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
+          >
+            Marketplace
+          </Link>
+          {profile?.is_platform_operator && (
+            <Link
+              href="/app/governance"
+              className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
+            >
+              Governance
+            </Link>
+          )}
+          <Link
             href="/"
             className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
           >

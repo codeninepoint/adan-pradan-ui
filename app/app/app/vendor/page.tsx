@@ -89,10 +89,24 @@ function VendorBody() {
 
   useEffect(() => {
     void loadEligibility();
-    const stored = getVendorId();
-    if (stored) void loadVerification(stored);
+    void (async () => {
+      const stored = getVendorId();
+      if (stored) {
+        await loadVerification(stored);
+        return;
+      }
+      if (!org?.org_id) return;
+      try {
+        const found = await vendorApi.forOrg(org.org_id, ensureAccessToken);
+        saveVendorId(found.vendor_id);
+        await loadVerification(found.vendor_id);
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 404) return;
+        setError(err instanceof ApiError ? err.detail : "Failed to load the vendor profile.");
+      }
+    })();
     void loadQueue();
-  }, [loadEligibility, loadVerification, loadQueue]);
+  }, [loadEligibility, loadVerification, loadQueue, org?.org_id, ensureAccessToken]);
 
   async function onDecide(verificationId: string, decision: "approved" | "rejected") {
     setDecidingId(verificationId);

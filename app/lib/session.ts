@@ -155,6 +155,11 @@ export function getVendorId(): string | null {
   return sessionStorage.getItem(VENDOR_ID_KEY);
 }
 
+export function clearVendorId(): void {
+  if (!canUseStorage()) return;
+  sessionStorage.removeItem(VENDOR_ID_KEY);
+}
+
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "AP";
