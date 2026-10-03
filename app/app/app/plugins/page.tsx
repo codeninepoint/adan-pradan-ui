@@ -394,6 +394,13 @@ function PluginsBody() {
         }}
       >
         <h2 className="font-semibold">Create product and offering</h2>
+        <p className="text-sm text-muted">
+          The same catalog is on{" "}
+          <Link href="/app/vendor/products" className="font-semibold text-primary hover:underline">
+            Vendor products
+          </Link>
+          , including edit and archive.
+        </p>
         <input name="name" required placeholder="Product name" className={inputClass} />
         <input name="description" placeholder="Description" className={inputClass} />
         <input

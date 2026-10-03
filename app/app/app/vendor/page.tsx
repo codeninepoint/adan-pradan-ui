@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { RequireAuth } from "@/components/auth-guards";
 import { useAuth } from "@/components/auth-provider";
+import { VendorOverview } from "@/components/vendor/overview";
+import { useVendorPortal } from "@/components/vendor/portal";
 import { ApiError, orgApi, vendorApi, type VendorEligibilityResponse } from "@/lib/api";
 import { clearVendorId, saveVendorId } from "@/lib/session";
 
@@ -29,6 +30,7 @@ type VerificationInfo = {
 
 function VendorBody() {
   const { profile, ensureAccessToken, refreshProfile } = useAuth();
+  const { adopt } = useVendorPortal();
   const org = profile?.organizations[0];
   const [eligibility, setEligibility] = useState<VendorEligibilityResponse | null>(null);
   const [verification, setVerification] = useState<VerificationInfo | null>(null);
@@ -158,6 +160,12 @@ function VendorBody() {
       );
       saveVendorId(res.vendor_id);
       setVendorId(res.vendor_id);
+      adopt({
+        vendor_id: res.vendor_id,
+        org_id: res.org_id,
+        status: res.status,
+        legal_name: legalName.trim(),
+      });
       setMessage(`Registered. Vendor ${res.vendor_id.slice(0, 8)}… · ${res.status}`);
       await refreshProfile();
       await loadEligibility();
@@ -494,9 +502,8 @@ function VendorBody() {
 }
 
 export default function VendorPage() {
-  return (
-    <RequireAuth>
-      <VendorBody />
-    </RequireAuth>
-  );
+  const { ready, vendor } = useVendorPortal();
+  if (!ready) return null;
+  if (!vendor) return <VendorBody />;
+  return <VendorOverview />;
 }
