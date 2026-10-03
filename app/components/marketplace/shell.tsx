@@ -44,11 +44,12 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!tenantId) return;
+    const id = tenantId;
     let cancelled = false;
 
     function loadCart() {
       void marketplaceApi
-        .cart(tenantId, ensureAccessToken)
+        .cart(id, ensureAccessToken)
         .then((cart) => {
           if (!cancelled) setCount(cart.lines.reduce((sum, line) => sum + line.quantity, 0));
         })
@@ -59,7 +60,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
 
     function loadAddress() {
       void marketplaceApi
-        .addresses(tenantId, ensureAccessToken)
+        .addresses(id, ensureAccessToken)
         .then((data) => {
           if (cancelled) return;
           const first = data.addresses[0];

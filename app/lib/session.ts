@@ -48,6 +48,9 @@ export function saveSession(token: TokenResponse, tenantId?: string): Session {
     tenant_id: tenantId ?? existing?.tenant_id,
   };
   if (canUseStorage()) {
+    if (existing?.user_id && existing.user_id !== token.user_id) {
+      clearVendorId();
+    }
     sessionStorage.setItem(SESSION_KEY, JSON.stringify(session));
     notifySessionChange();
   }
@@ -119,6 +122,7 @@ export function clearSession(): void {
   if (!canUseStorage()) return;
   sessionStorage.removeItem(SESSION_KEY);
   sessionStorage.removeItem(PROFILE_KEY);
+  clearVendorId();
   notifySessionChange();
 }
 

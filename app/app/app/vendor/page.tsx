@@ -5,7 +5,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/auth-guards";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, orgApi, vendorApi, type VendorEligibilityResponse } from "@/lib/api";
-import { getVendorId, saveVendorId } from "@/lib/session";
+import { clearVendorId, saveVendorId } from "@/lib/session";
 
 type QueueItem = {
   verification_id: string;
@@ -45,6 +45,7 @@ function VendorBody() {
   const [inviting, setInviting] = useState(false);
   const [accepting, setAccepting] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState(false);
+  const [vendorId, setVendorId] = useState<string | null>(null);
   const [queue, setQueue] = useState<QueueItem[]>([]);
   const [queueError, setQueueError] = useState<string | null>(null);
   const [decidingId, setDecidingId] = useState<string | null>(null);
@@ -58,7 +59,15 @@ function VendorBody() {
         const data = await vendorApi.verification(vendorId, ensureAccessToken);
         setVerification(data);
       } catch (err) {
-        setError(err instanceof ApiError ? err.detail : "Failed to load verification status.");
+        const foreign =
+          err instanceof ApiError && (err.status === 403 || err.status === 404);
+        if (foreign) {
+          clearVendorId();
+          setVendorId(null);
+          setVerification(null);
+        } else {
+          setError(err instanceof ApiError ? err.detail : "Failed to load verification status.");
+        }
       } finally {
         setLoadingStatus(false);
       }
@@ -90,23 +99,26 @@ function VendorBody() {
   useEffect(() => {
     void loadEligibility();
     void (async () => {
-      const stored = getVendorId();
-      if (stored) {
-        await loadVerification(stored);
-        return;
+      const orgs = profile?.organizations ?? [];
+      for (const candidate of orgs) {
+        try {
+          const found = await vendorApi.forOrg(candidate.org_id, ensureAccessToken);
+          saveVendorId(found.vendor_id);
+          setVendorId(found.vendor_id);
+          await loadVerification(found.vendor_id);
+          return;
+        } catch (err) {
+          if (err instanceof ApiError && (err.status === 404 || err.status === 403)) continue;
+          setError(err instanceof ApiError ? err.detail : "Failed to load the vendor profile.");
+          return;
+        }
       }
-      if (!org?.org_id) return;
-      try {
-        const found = await vendorApi.forOrg(org.org_id, ensureAccessToken);
-        saveVendorId(found.vendor_id);
-        await loadVerification(found.vendor_id);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) return;
-        setError(err instanceof ApiError ? err.detail : "Failed to load the vendor profile.");
-      }
+      clearVendorId();
+      setVendorId(null);
+      setVerification(null);
     })();
     void loadQueue();
-  }, [loadEligibility, loadVerification, loadQueue, org?.org_id, ensureAccessToken]);
+  }, [loadEligibility, loadVerification, loadQueue, profile?.organizations, ensureAccessToken]);
 
   async function onDecide(verificationId: string, decision: "approved" | "rejected") {
     setDecidingId(verificationId);
@@ -145,6 +157,7 @@ function VendorBody() {
         ensureAccessToken,
       );
       saveVendorId(res.vendor_id);
+      setVendorId(res.vendor_id);
       setMessage(`Registered. Vendor ${res.vendor_id.slice(0, 8)}… · ${res.status}`);
       await refreshProfile();
       await loadEligibility();
@@ -293,19 +306,18 @@ function VendorBody() {
           )}
         </div>
 
-        {(verification || getVendorId()) && (
+        {(verification || vendorId) && (
           <section className="mt-6 rounded-xl border border-border bg-surface p-5 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-bold uppercase tracking-wide text-muted">
                 Verification status
               </h2>
-              {getVendorId() && (
+              {vendorId && (
                 <button
                   type="button"
                   disabled={loadingStatus}
                   onClick={() => {
-                    const id = getVendorId();
-                    if (id) void loadVerification(id);
+                    if (vendorId) void loadVerification(vendorId);
                   }}
                   className="text-xs font-semibold text-primary hover:underline disabled:opacity-60"
                 >
