@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, marketplaceApi, type OrderDetail } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 export default function OrderDetailPage() {
   const params = useParams<{ id: string }>();
@@ -36,7 +37,8 @@ export default function OrderDetailPage() {
               {line.product_name} × {line.quantity}
             </p>
             <p className="text-muted">
-              {line.plan_name} · {line.fulfilment_type} · ${line.unit_price}
+              {line.plan_name} · {line.fulfilment_type} ·{" "}
+              {formatMoney(line.unit_price, line.currency)}
             </p>
             <form
               className="mt-3 flex flex-wrap gap-2"

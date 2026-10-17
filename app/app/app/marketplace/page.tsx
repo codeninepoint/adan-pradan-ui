@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { FULFILMENT_CHIPS, ProductGrid } from "@/components/marketplace/cards";
 import { marketplaceApi, type CatalogItem } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 export default function MarketplaceHomePage() {
   const [rails, setRails] = useState<Record<string, CatalogItem[]>>({});
@@ -29,7 +30,8 @@ export default function MarketplaceHomePage() {
           <p className="mt-2 text-xl font-bold text-foreground">{launch.product_name}</p>
           <p className="mt-1 text-sm text-muted">{launch.vendor}</p>
           <p className="mt-4 text-sm font-semibold text-foreground">
-            ${Number(launch.price_usd).toFixed(2)} <span className="font-normal text-muted">/ {launch.billing_period}</span>
+            {formatMoney(Number(launch.price ?? launch.price_usd), launch.currency)}{" "}
+            <span className="font-normal text-muted">/ {launch.billing_period}</span>
           </p>
         </Link>
       )}

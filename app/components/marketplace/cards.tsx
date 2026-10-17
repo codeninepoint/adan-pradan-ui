@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, marketplaceApi, type CatalogItem } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 const LABELS: Record<string, string> = {
   SHIP_PHYSICAL: "Ships to you",
@@ -37,8 +38,8 @@ export function canInstall(code: string): boolean {
   return code === "PROVISION_SOFTWARE" || code === "PROVISION_CLOUD";
 }
 
-function money(amount: number): string {
-  return `$${Number(amount).toFixed(2)}`;
+function money(amount: number, currency?: string): string {
+  return formatMoney(amount, currency || "INR");
 }
 
 export function ProductCard({ item }: { item: CatalogItem }) {
@@ -90,7 +91,8 @@ export function ProductCard({ item }: { item: CatalogItem }) {
           <p className="font-semibold text-foreground">{item.product_name}</p>
           <p className="text-sm text-muted">{item.vendor}</p>
           <p className="mt-3 text-sm text-foreground">
-            {money(item.price_usd)} <span className="text-muted">/ {item.billing_period}</span>
+            {money(item.price ?? item.price_usd, item.currency)}{" "}
+            <span className="text-muted">/ {item.billing_period}</span>
           </p>
         </div>
       </Link>

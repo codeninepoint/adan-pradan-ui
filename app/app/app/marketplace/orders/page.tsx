@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { marketplaceApi, type OrderSummary } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 export default function OrdersPage() {
   const { tenantId, ensureAccessToken } = useAuth();
@@ -39,7 +40,7 @@ export default function OrdersPage() {
                 </td>
                 <td>{order.status}</td>
                 <td className="capitalize">{order.payment_method}</td>
-                <td>${order.total.toFixed(2)}</td>
+                <td>{formatMoney(order.total, "INR")}</td>
               </tr>
             ))}
           </tbody>

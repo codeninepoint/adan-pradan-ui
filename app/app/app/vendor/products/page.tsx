@@ -1,83 +1,139 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
-import { FULFILMENT_CHIPS, fulfilmentLabel } from "@/components/marketplace/cards";
 import { useVendorPortal } from "@/components/vendor/portal";
-import { ApiError, marketplaceApi } from "@/lib/api";
+import { ApiError, marketplaceApi, ServiceCityItem, VendorProductItem, vendorApi } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
-type Variant = { name: string; sku: string };
+const CATEGORIES = ["Dairy", "Fresh Produce", "Beverages", "Bakery", "Snacks", "Grains", "Other"];
 
-type ProductRow = {
-  product_id: string;
-  name: string;
-  status: string;
-  fulfilment_type: string;
-  category: string;
-  content: { variants?: Variant[] };
-};
-
-type OfferingRow = {
-  offering_id: string;
-  product_id: string;
-  product_name: string;
-  plan_name: string;
-  status: string;
-  price_usd: number;
-};
-
-type PluginRow = { plugin_id: string; name: string; slug: string };
-
-type StockRow = {
-  inventory_id: string;
-  product_id: string;
-  warehouse_id: string;
-  warehouse_name: string;
-  sku: string;
-  available: number;
-};
-
-type Warehouse = { warehouse_id: string; name: string };
-
-type VariantDraft = { name: string; sku: string; stock: string };
+const AUTH_CHECKS = [
+  "The product name, description, and images accurately represent the actual product I am selling.",
+  "I have the legal right to sell this product (licensed distributor, manufacturer, or authorised reseller).",
+  "The listed price is the correct MRP and I will not charge customers more than this amount.",
+  "I have not included misleading health claims, fake certifications, or counterfeit branding in any text or image.",
+  "I understand that Platform Admin may reject or remove this listing if it violates the AdanPradan Vendor Policy.",
+];
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary";
 const buttonClass =
   "cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50";
-const ghostClass = "cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50";
+const ghostClass =
+  "cursor-pointer rounded-lg border border-border px-3 py-1.5 text-xs font-semibold disabled:opacity-50";
+
+function paStatusBadge(status: string) {
+  switch (status) {
+    case "live":
+      return "text-success";
+    case "pending_review":
+      return "text-primary";
+    case "rejected":
+      return "text-error";
+    default:
+      return "text-muted";
+  }
+}
+
+function paStatusLabel(status: string) {
+  switch (status) {
+    case "live":
+      return "Live";
+    case "pending_review":
+      return "Pending Review";
+    case "rejected":
+      return "Rejected";
+    case "not_submitted":
+      return "Not submitted";
+    default:
+      return status;
+  }
+}
+
+function visibilityBadge(visibility: string) {
+  switch (visibility) {
+    case "visible":
+      return "text-success";
+    case "awaiting_pa":
+      return "text-muted";
+    default:
+      return "text-error";
+  }
+}
+
+function visibilityLabel(visibility: string) {
+  switch (visibility) {
+    case "visible":
+      return "Visible";
+    case "awaiting_pa":
+      return "Awaiting PA";
+    default:
+      return "Hidden";
+  }
+}
+
+function stockLabel(status: string) {
+  switch (status) {
+    case "low_stock":
+      return { text: "Low", className: "text-error" };
+    case "ok":
+      return { text: "OK", className: "text-success" };
+    default:
+      return { text: status || "—", className: "text-muted" };
+  }
+}
+
+function Dialog({ title, onClose, children, wide }: { title: string; onClose: () => void; children: ReactNode; wide?: boolean }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
+      <div
+        role="dialog"
+        aria-label={title}
+        className={`my-8 w-full rounded-xl border border-border bg-surface p-5 ${wide ? "max-w-2xl" : "max-w-lg"}`}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h2 className="text-lg font-bold">{title}</h2>
+          <button type="button" className={ghostClass} onClick={onClose}>
+            Close
+          </button>
+        </div>
+        <div className="mt-4">{children}</div>
+      </div>
+    </div>
+  );
+}
 
 export default function VendorProductsPage() {
   const { vendor } = useVendorPortal();
   const { ensureAccessToken } = useAuth();
-  const [products, setProducts] = useState<ProductRow[]>([]);
-  const [offerings, setOfferings] = useState<OfferingRow[]>([]);
-  const [plugins, setPlugins] = useState<PluginRow[]>([]);
-  const [stock, setStock] = useState<StockRow[]>([]);
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [products, setProducts] = useState<VendorProductItem[]>([]);
+  const [cities, setCities] = useState<ServiceCityItem[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<ProductRow | null>(null);
-  const [stockProduct, setStockProduct] = useState<ProductRow | null>(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<VendorProductItem | null>(null);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [paFilter, setPaFilter] = useState("");
+  const [cityFilter, setCityFilter] = useState("");
+  const [showPlugins, setShowPlugins] = useState(false);
+  const [defaultCurrency, setDefaultCurrency] = useState("INR");
 
   const load = useCallback(async () => {
     if (!vendor) return;
     const vendorId = vendor.vendor_id;
-    const [productData, offeringData, pluginData, stockData, warehouseData] = await Promise.all([
+    const [productData, cityData, settings] = await Promise.all([
       marketplaceApi.vendorProducts(vendorId, ensureAccessToken),
-      marketplaceApi.offerings(vendorId, ensureAccessToken),
-      marketplaceApi.plugins(vendorId, ensureAccessToken),
-      marketplaceApi.vendorInventory(vendorId, ensureAccessToken),
-      marketplaceApi.vendorWarehouses(vendorId, ensureAccessToken),
+      marketplaceApi.serviceCities(vendorId, ensureAccessToken),
+      vendorApi.settings(vendorId, ensureAccessToken),
     ]);
     setProducts(productData.products);
-    setOfferings(offeringData.offerings);
-    setPlugins(pluginData.plugins);
-    setStock(stockData.rows);
-    setWarehouses(warehouseData.warehouses);
+    setCities(cityData.cities);
+    setDefaultCurrency(settings.default_currency || "INR");
   }, [vendor, ensureAccessToken]);
 
   useEffect(() => {
@@ -85,6 +141,39 @@ export default function VendorProductsPage() {
       setError(err instanceof ApiError ? err.detail : "Could not load products.");
     });
   }, [load]);
+
+  const physicalProducts = useMemo(
+    () => products.filter((p) => p.fulfilment_type === "SHIP_PHYSICAL" || p.pa_status !== "not_submitted" || p.mrp_inr > 0),
+    [products],
+  );
+  const pluginProducts = useMemo(
+    () => products.filter((p) => !physicalProducts.some((pp) => pp.product_id === p.product_id)),
+    [products, physicalProducts],
+  );
+
+  const rejectedCount = useMemo(
+    () => physicalProducts.filter((p) => p.pa_status === "rejected").length,
+    [physicalProducts],
+  );
+
+  const cityNames = useMemo(() => {
+    const names = new Set<string>();
+    for (const product of physicalProducts) {
+      for (const city of product.cities) names.add(city);
+    }
+    for (const city of cities) names.add(city.city_name);
+    return [...names].sort();
+  }, [physicalProducts, cities]);
+
+  const filtered = useMemo(() => {
+    return physicalProducts.filter((product) => {
+      if (search && !product.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (categoryFilter && product.category !== categoryFilter) return false;
+      if (paFilter && product.pa_status !== paFilter) return false;
+      if (cityFilter && !product.cities.includes(cityFilter)) return false;
+      return true;
+    });
+  }, [physicalProducts, search, categoryFilter, paFilter, cityFilter]);
 
   async function run(key: string, action: () => Promise<string>) {
     setError(null);
@@ -103,679 +192,461 @@ export default function VendorProductsPage() {
   if (!vendor) return null;
 
   return (
-    <div className="max-w-3xl">
+    <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Products</h1>
           <p className="mt-1 text-sm text-muted">
-            Create a product with a fulfilment type, then publish its offering. Plugin registration stays on{" "}
-            <Link href="/app/plugins" className="font-semibold text-primary hover:underline">
-              Plugins
-            </Link>
-            .
+            Manage your product catalogue. All new listings are reviewed by Platform Admin before going live.
           </p>
         </div>
-        <button type="button" disabled={plugins.length === 0} className={buttonClass} onClick={() => setAdding(true)}>
-          Add product
+        <button type="button" className={buttonClass} onClick={() => { setEditing(null); setShowForm(true); }}>
+          + New Product
         </button>
       </div>
+
+      <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+        <strong>Content is reviewed before it goes live.</strong> Platform Admin checks all new product listings and
+        images for authenticity, accuracy, and policy compliance. Typical review time: <strong>4–24 hours</strong>.
+      </div>
+
+      {rejectedCount > 0 && (
+        <div className="mt-3 rounded-xl border border-error/30 bg-error/5 px-4 py-3 text-sm text-foreground">
+          <strong>{rejectedCount} product{rejectedCount === 1 ? "" : "s"} rejected by Platform Admin.</strong> Open
+          each rejected listing to see the reason and resubmit with corrections.
+        </div>
+      )}
+
       {message && <p className="mt-4 text-sm text-primary">{message}</p>}
       {error && <p className="mt-4 text-sm text-error">{error}</p>}
 
-      <ul className="mt-6 space-y-3">
-        {products.length === 0 && <li className="text-sm text-muted">No products yet.</li>}
-        {products.map((product) => {
-          const offering = offerings.find((item) => item.product_id === product.product_id);
-          const rows = displayRows(product, offering, stock);
-          return (
-            <li key={product.product_id} className="rounded-xl border border-border bg-surface p-4 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold">{product.name}</p>
-                  <p className="mt-1 text-muted">
-                    {fulfilmentLabel(product.fulfilment_type)}
-                    {product.category ? ` · ${product.category}` : ""} · {product.status}
-                  </p>
-                </div>
-                <span className="text-xs font-semibold capitalize text-muted">{product.status}</span>
-              </div>
-              <table className="mt-3 w-full text-left text-xs">
-                <thead className="text-muted">
-                  <tr>
-                    <th className="py-1 font-semibold">Variant</th>
-                    <th className="py-1 font-semibold">SKU</th>
-                    <th className="py-1 font-semibold">Price</th>
-                    <th className="py-1 font-semibold">Stock</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((row) => (
-                    <tr key={`${row.name}-${row.sku}`} className="border-t border-border">
-                      <td className="py-2">{row.name}</td>
-                      <td className="py-2 font-mono">{row.sku}</td>
-                      <td className="py-2">{row.price}</td>
-                      <td className="py-2">{row.stock}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {product.status !== "archived" && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" className={ghostClass} onClick={() => setEditing(product)}>
-                    Edit
-                  </button>
-                  <button type="button" className={ghostClass} onClick={() => setStockProduct(product)}>
-                    Manage stock
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy !== null}
-                    className={ghostClass}
-                    onClick={() => {
-                      void run(`archive-${product.product_id}`, async () => {
-                        const archived = await marketplaceApi.archiveProduct(product.product_id, ensureAccessToken);
-                        return `${product.name} is ${archived.status}.`;
-                      });
-                    }}
-                  >
-                    {busy === `archive-${product.product_id}` ? "Archiving…" : "Archive"}
-                  </button>
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-
-      <section className="mt-8 rounded-xl border border-border bg-surface p-5">
-        <h2 className="font-semibold">Offerings</h2>
-        {offerings.length === 0 && <p className="mt-3 text-sm text-muted">No offerings yet.</p>}
-        <ul className="mt-3 space-y-3">
-          {offerings.map((offering) => (
-            <li key={offering.offering_id} className="flex items-center justify-between gap-3 text-sm">
-              <p>
-                <span className="font-semibold">{offering.product_name}</span>
-                <span className="text-muted">
-                  {" "}
-                  · {offering.plan_name} · ${offering.price_usd.toFixed(2)} · {offering.status}
-                </span>
-              </p>
-              {offering.status !== "published" && (
-                <button
-                  type="button"
-                  disabled={busy !== null}
-                  className={buttonClass}
-                  onClick={() => {
-                    void run(`publish-${offering.offering_id}`, async () => {
-                      const published = await marketplaceApi.publishOffering(offering.offering_id, ensureAccessToken);
-                      return `${offering.product_name} is ${published.status}.`;
-                    });
-                  }}
-                >
-                  {busy === `publish-${offering.offering_id}` ? "Publishing…" : "Publish"}
-                </button>
-              )}
-            </li>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <input
+          type="search"
+          placeholder="Search products…"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          className="min-w-[12rem] flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+        />
+        <select
+          value={categoryFilter}
+          onChange={(event) => setCategoryFilter(event.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="">All categories</option>
+          {CATEGORIES.map((cat) => (
+            <option key={cat} value={cat}>
+              {cat}
+            </option>
           ))}
-        </ul>
-      </section>
-
-      {adding && (
-        <AddProductDialog
-          plugins={plugins}
-          warehouses={warehouses}
-          busy={busy === "create"}
-          onClose={() => setAdding(false)}
-          onSubmit={(payload) => {
-            const vendorId = vendor.vendor_id;
-            void run("create", async () => {
-              const product = await marketplaceApi.createProduct(
-                vendorId,
-                {
-                  name: payload.name,
-                  description: payload.description,
-                  plugin_id: payload.pluginId,
-                  fulfilment_type: payload.fulfilmentType,
-                  category: payload.category || undefined,
-                  content: { variants: payload.variants.map(({ name, sku }) => ({ name, sku })) },
-                },
-                ensureAccessToken,
-              );
-              const offering = await marketplaceApi.createOffering(
-                product.product_id,
-                {
-                  plan_name: payload.planName,
-                  billing_period: payload.billingPeriod,
-                  price_usd: payload.priceUsd,
-                },
-                ensureAccessToken,
-              );
-              if (payload.warehouseId) {
-                for (const variant of payload.variants) {
-                  const available = Number(variant.stock);
-                  if (!variant.sku || !Number.isFinite(available) || available <= 0) continue;
-                  await marketplaceApi.addInventory(
-                    vendorId,
-                    {
-                      product_id: product.product_id,
-                      warehouse_id: payload.warehouseId,
-                      sku: variant.sku,
-                      available,
-                    },
-                    ensureAccessToken,
-                  );
-                }
-              }
-              setAdding(false);
-              return `${payload.name} is ${product.status}. Offering ${offering.status}.`;
-            });
-          }}
-        />
-      )}
-
-      {editing && (
-        <EditProductDialog
-          product={editing}
-          offering={offerings.find((item) => item.product_id === editing.product_id) ?? null}
-          busy={busy === `edit-${editing.product_id}`}
-          onClose={() => setEditing(null)}
-          onSubmit={(payload) => {
-            const productId = editing.product_id;
-            const offering = offerings.find((item) => item.product_id === productId);
-            void run(`edit-${productId}`, async () => {
-              const saved = await marketplaceApi.updateProduct(
-                productId,
-                {
-                  name: payload.name,
-                  category: payload.category,
-                  content: { variants: payload.variants },
-                },
-                ensureAccessToken,
-              );
-              if (offering) {
-                await marketplaceApi.updateOfferingPrice(offering.offering_id, payload.priceUsd, ensureAccessToken);
-              }
-              setEditing(null);
-              return `${saved.name} saved.`;
-            });
-          }}
-        />
-      )}
-
-      {stockProduct && (
-        <ManageStockDialog
-          key={stock
-            .filter((row) => row.product_id === stockProduct.product_id)
-            .map((row) => `${row.inventory_id}:${row.available}`)
-            .join("|")}
-          product={stockProduct}
-          rows={stock.filter((row) => row.product_id === stockProduct.product_id)}
-          warehouses={warehouses}
-          busy={busy}
-          onClose={() => setStockProduct(null)}
-          onAdjust={(inventoryId, available) => {
-            const vendorId = vendor.vendor_id;
-            void run(`adjust-${inventoryId}`, async () => {
-              await marketplaceApi.adjustInventory(vendorId, inventoryId, available, ensureAccessToken);
-              return "Stock updated.";
-            });
-          }}
-          onAdd={(body) => {
-            const vendorId = vendor.vendor_id;
-            void run("add-stock", async () => {
-              await marketplaceApi.addInventory(
-                vendorId,
-                { product_id: stockProduct.product_id, ...body },
-                ensureAccessToken,
-              );
-              return "Stock recorded.";
-            });
-          }}
-        />
-      )}
-    </div>
-  );
-}
-
-function displayRows(product: ProductRow, offering: OfferingRow | undefined, stock: StockRow[]) {
-  const stored = Array.isArray(product.content?.variants) ? product.content.variants : [];
-  const variants = stored.length > 0 ? stored : [{ name: offering?.plan_name || "—", sku: "—" }];
-  const price = offering ? `$${offering.price_usd.toFixed(2)}` : "—";
-  return variants.map((variant) => ({
-    name: variant.name || "—",
-    sku: variant.sku || "—",
-    price,
-    stock: stockLabel(product.product_id, variant.sku, stock),
-  }));
-}
-
-function stockLabel(productId: string, sku: string, stock: StockRow[]) {
-  const matched =
-    sku && sku !== "—"
-      ? stock.filter((row) => row.product_id === productId && row.sku === sku)
-      : stock.filter((row) => row.product_id === productId);
-  if (matched.length === 0) return "—";
-  return String(matched.reduce((sum, row) => sum + row.available, 0));
-}
-
-function Dialog({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4" onClick={onClose}>
-      <div
-        role="dialog"
-        aria-label={title}
-        className="my-8 w-full max-w-lg rounded-xl border border-border bg-surface p-5"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <h2 className="text-lg font-bold">{title}</h2>
-          <button type="button" className={ghostClass} onClick={onClose}>
-            Close
-          </button>
-        </div>
-        <div className="mt-4">{children}</div>
+        </select>
+        <select
+          value={paFilter}
+          onChange={(event) => setPaFilter(event.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="">All PA statuses</option>
+          <option value="live">Live</option>
+          <option value="pending_review">Pending Review</option>
+          <option value="rejected">Rejected</option>
+          <option value="not_submitted">Not submitted</option>
+        </select>
+        <select
+          value={cityFilter}
+          onChange={(event) => setCityFilter(event.target.value)}
+          className="rounded-lg border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="">All cities</option>
+          {cityNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
       </div>
+
+      <div className="mt-6 overflow-x-auto rounded-xl border border-border bg-surface">
+        <table className="w-full min-w-[56rem] text-left text-sm">
+          <thead className="text-xs font-semibold uppercase tracking-wide text-muted">
+            <tr>
+              <th className="px-4 py-3 font-semibold">Product</th>
+              <th className="px-4 py-3 font-semibold">Category</th>
+              <th className="px-4 py-3 font-semibold">Price</th>
+              <th className="px-4 py-3 font-semibold">Images</th>
+              <th className="px-4 py-3 font-semibold">Cities</th>
+              <th className="px-4 py-3 font-semibold">Stock</th>
+              <th className="px-4 py-3 font-semibold">PA Status</th>
+              <th className="px-4 py-3 font-semibold">Visibility</th>
+              <th className="px-4 py-3 font-semibold" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-4 py-8 text-center text-muted">
+                  No products match your filters.
+                </td>
+              </tr>
+            )}
+            {filtered.map((product) => {
+              const stock = stockLabel(product.stock_status);
+              return (
+                <tr key={product.product_id} className="border-t border-border">
+                  <td className="px-4 py-3">
+                    <p className="font-semibold">{product.name}</p>
+                    {product.net_weight && <p className="text-xs text-muted">{product.net_weight}</p>}
+                  </td>
+                  <td className="px-4 py-3 text-muted">{product.category || "—"}</td>
+                  <td className="px-4 py-3">
+                    {product.mrp_inr > 0
+                      ? formatMoney(product.mrp_inr, product.currency || defaultCurrency)
+                      : "—"}
+                  </td>
+                  <td className="px-4 py-3">
+                    {product.image_count > 0 ? (
+                      <span className="text-muted">{product.image_count}</span>
+                    ) : (
+                      <span className="text-xs font-semibold text-error">No images</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    {product.cities.length === 0 ? (
+                      <span className="text-xs font-semibold text-error">No city</span>
+                    ) : (
+                      <span className="flex flex-wrap gap-1">
+                        {product.cities.map((city) => (
+                          <span
+                            key={city}
+                            className="rounded-full border border-border px-1.5 py-0.5 text-xs font-semibold text-primary"
+                          >
+                            {city}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                  </td>
+                  <td className={`px-4 py-3 font-semibold ${stock.className}`}>{stock.text}</td>
+                  <td className={`px-4 py-3 font-semibold ${paStatusBadge(product.pa_status)}`}>
+                    {paStatusLabel(product.pa_status)}
+                  </td>
+                  <td className={`px-4 py-3 font-semibold ${visibilityBadge(product.visibility)}`}>
+                    {visibilityLabel(product.visibility)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      type="button"
+                      className={ghostClass}
+                      onClick={() => {
+                        setEditing(product);
+                        setShowForm(true);
+                      }}
+                    >
+                      {product.pa_status === "rejected" ? "Edit & Resubmit" : "Edit"}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {pluginProducts.length > 0 && (
+        <section className="mt-8 rounded-xl border border-border bg-surface">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold"
+            onClick={() => setShowPlugins((current) => !current)}
+          >
+            <span>Software / plugin products ({pluginProducts.length})</span>
+            <span className="text-muted">{showPlugins ? "▲" : "▼"}</span>
+          </button>
+          {showPlugins && (
+            <div className="border-t border-border px-4 py-3 text-sm text-muted">
+              <p>
+                Plugin-based products are managed on{" "}
+                <Link href="/app/plugins" className="font-semibold text-primary hover:underline">
+                  Plugins
+                </Link>
+                .
+              </p>
+              <ul className="mt-2 space-y-1">
+                {pluginProducts.map((product) => (
+                  <li key={product.product_id}>
+                    {product.name} · {product.status}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </section>
+      )}
+
+      {showForm && (
+        <ProductFormDialog
+          product={editing}
+          cities={cities}
+          defaultCurrency={defaultCurrency}
+          busy={busy === "submit"}
+          onClose={() => {
+            setShowForm(false);
+            setEditing(null);
+          }}
+          onSubmit={(payload) => {
+            void run("submit", async () => {
+              const saved = await marketplaceApi.submitProductListing(vendor.vendor_id, payload, ensureAccessToken);
+              setShowForm(false);
+              setEditing(null);
+              return `${saved.name} submitted for review.`;
+            });
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function AddProductDialog({
-  plugins,
-  warehouses,
+type FormPayload = {
+  product_id?: string;
+  name: string;
+  description: string;
+  category: string;
+  sku: string;
+  mrp_inr: number;
+  currency?: string;
+  net_weight: string;
+  brand: string;
+  image_urls: string[];
+  authenticity_attested: boolean;
+  city_ids: string[];
+  fulfilment_type?: "SHIP_PHYSICAL";
+};
+
+function ProductFormDialog({
+  product,
+  cities,
+  defaultCurrency,
   busy,
   onClose,
   onSubmit,
 }: {
-  plugins: PluginRow[];
-  warehouses: Warehouse[];
+  product: VendorProductItem | null;
+  cities: ServiceCityItem[];
+  defaultCurrency: string;
   busy: boolean;
   onClose: () => void;
-  onSubmit: (payload: {
-    name: string;
-    description: string;
-    pluginId: string;
-    fulfilmentType: string;
-    category: string;
-    planName: string;
-    billingPeriod: string;
-    priceUsd: number;
-    warehouseId: string;
-    variants: VariantDraft[];
-  }) => void;
+  onSubmit: (payload: FormPayload) => void;
 }) {
-  const [variants, setVariants] = useState<VariantDraft[]>([{ name: "", sku: "", stock: "" }]);
+  const listingCurrency = product?.currency || defaultCurrency || "INR";
+  const isResubmit = product?.pa_status === "rejected";
+  const cityNameToId = useMemo(
+    () => Object.fromEntries(cities.map((city) => [city.city_name, city.city_id])),
+    [cities],
+  );
+  const initialCityIds = useMemo(
+    () => (product?.cities ?? []).map((name) => cityNameToId[name]).filter(Boolean),
+    [product, cityNameToId],
+  );
+
+  const [imageUrls, setImageUrls] = useState<string[]>(() => {
+    const urls = product?.image_urls ?? [];
+    return urls.length >= 2 ? urls.slice(0, 5) : [...urls, "", ""].slice(0, Math.max(2, urls.length + 1));
+  });
+  const [checks, setChecks] = useState<boolean[]>(() => AUTH_CHECKS.map(() => Boolean(product)));
+  const [selectedCities, setSelectedCities] = useState<Set<string>>(() => new Set(initialCityIds));
   const [formError, setFormError] = useState<string | null>(null);
 
-  function onCreate(event: FormEvent<HTMLFormElement>) {
+  function toggleCity(cityId: string) {
+    setSelectedCities((current) => {
+      const next = new Set(current);
+      if (next.has(cityId)) next.delete(cityId);
+      else next.add(cityId);
+      return next;
+    });
+  }
+
+  function onFormSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    const cleaned = variants
-      .map((row) => ({ name: row.name.trim(), sku: row.sku.trim(), stock: row.stock.trim() }))
-      .filter((row) => row.name || row.sku);
-    if (cleaned.length === 0) {
-      setFormError("Add at least one variant name or SKU.");
+    const urls = imageUrls.map((url) => url.trim()).filter(Boolean);
+    if (urls.length < 1 || urls.length > 5) {
+      setFormError("Provide 1 to 5 image URLs.");
       return;
     }
-    const needsWarehouse = cleaned.some((row) => Number(row.stock) > 0);
-    const warehouseId = String(data.get("warehouse_id") ?? "");
-    if (needsWarehouse && !warehouseId) {
-      setFormError("Choose a warehouse before recording starting stock.");
+    if (!checks.every(Boolean)) {
+      setFormError("Confirm all authenticity checklist items.");
+      return;
+    }
+    if (selectedCities.size === 0) {
+      setFormError("Select at least one serviceable city.");
+      return;
+    }
+    const mrp = Number(data.get("mrp_inr"));
+    if (!Number.isFinite(mrp) || mrp <= 0) {
+      setFormError("Enter a valid MRP greater than zero.");
       return;
     }
     setFormError(null);
     onSubmit({
+      ...(product ? { product_id: product.product_id } : {}),
       name: String(data.get("name") ?? ""),
       description: String(data.get("description") ?? ""),
-      pluginId: String(data.get("plugin_id") ?? ""),
-      fulfilmentType: String(data.get("fulfilment_type") ?? ""),
       category: String(data.get("category") ?? ""),
-      planName: String(data.get("plan_name") ?? "Pro"),
-      billingPeriod: String(data.get("billing_period") ?? "monthly"),
-      priceUsd: Number(data.get("price_usd") ?? 0),
-      warehouseId,
-      variants: cleaned,
-    });
-  }
-
-  return (
-    <Dialog title="Add product" onClose={onClose}>
-      <form onSubmit={onCreate} className="space-y-3">
-        {formError && <p className="text-sm text-error">{formError}</p>}
-        <label className="block text-xs font-semibold text-muted">
-          Name
-          <input name="name" required className={inputClass} />
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Description
-          <input name="description" className={inputClass} />
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Plugin
-          <select name="plugin_id" required className={inputClass} defaultValue={plugins[0]?.plugin_id ?? ""}>
-            {plugins.map((plugin) => (
-              <option key={plugin.plugin_id} value={plugin.plugin_id}>
-                {plugin.name} · {plugin.slug}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Fulfilment
-          <select name="fulfilment_type" className={inputClass} defaultValue="PROVISION_SOFTWARE">
-            {FULFILMENT_CHIPS.map((chip) => (
-              <option key={chip.code} value={chip.code}>
-                {chip.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Category
-          <input name="category" placeholder="Defaults to the plugin category" className={inputClass} />
-        </label>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <label className="text-xs font-semibold text-muted">
-            Plan
-            <input name="plan_name" defaultValue="Pro" className={inputClass} />
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Billing
-            <input name="billing_period" defaultValue="monthly" className={inputClass} />
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Price USD
-            <input name="price_usd" type="number" min="0" step="0.01" defaultValue={49} className={inputClass} />
-          </label>
-        </div>
-        <fieldset>
-          <legend className="text-xs font-semibold text-muted">Variants</legend>
-          <ul className="mt-2 space-y-2">
-            {variants.map((row, index) => (
-              <li key={index} className="grid grid-cols-[1fr_1fr_5rem_auto] gap-2">
-                <input
-                  value={row.name}
-                  placeholder="Variant"
-                  onChange={(event) =>
-                    setVariants((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, name: event.target.value } : item)),
-                    )
-                  }
-                  className={inputClass}
-                />
-                <input
-                  value={row.sku}
-                  placeholder="SKU"
-                  onChange={(event) =>
-                    setVariants((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, sku: event.target.value } : item)),
-                    )
-                  }
-                  className={inputClass}
-                />
-                <input
-                  value={row.stock}
-                  type="number"
-                  min={0}
-                  placeholder="Stock"
-                  onChange={(event) =>
-                    setVariants((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, stock: event.target.value } : item)),
-                    )
-                  }
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  className={ghostClass}
-                  onClick={() => setVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className={`${ghostClass} mt-2`}
-            onClick={() => setVariants((current) => [...current, { name: "", sku: "", stock: "" }])}
-          >
-            Add variant
-          </button>
-        </fieldset>
-        <label className="block text-xs font-semibold text-muted">
-          Warehouse for starting stock
-          <select name="warehouse_id" className={inputClass} defaultValue="">
-            <option value="">No starting stock</option>
-            {warehouses.map((warehouse) => (
-              <option key={warehouse.warehouse_id} value={warehouse.warehouse_id}>
-                {warehouse.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? "Creating…" : "Create draft"}
-        </button>
-      </form>
-    </Dialog>
-  );
-}
-
-function EditProductDialog({
-  product,
-  offering,
-  busy,
-  onClose,
-  onSubmit,
-}: {
-  product: ProductRow;
-  offering: OfferingRow | null;
-  busy: boolean;
-  onClose: () => void;
-  onSubmit: (payload: { name: string; category: string; priceUsd: number; variants: Variant[] }) => void;
-}) {
-  const initial = Array.isArray(product.content?.variants) ? product.content.variants : [];
-  const [variants, setVariants] = useState<Variant[]>(
-    initial.length > 0 ? initial.map((row) => ({ name: row.name, sku: row.sku })) : [{ name: "", sku: "" }],
-  );
-  const [formError, setFormError] = useState<string | null>(null);
-
-  function onSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const cleaned = variants.map((row) => ({ name: row.name.trim(), sku: row.sku.trim() })).filter((row) => row.name || row.sku);
-    if (cleaned.length === 0) {
-      setFormError("Add at least one variant name or SKU.");
-      return;
-    }
-    setFormError(null);
-    onSubmit({
-      name: String(data.get("name") ?? ""),
-      category: String(data.get("category") ?? ""),
-      priceUsd: Number(data.get("price_usd") ?? 0),
-      variants: cleaned,
-    });
-  }
-
-  return (
-    <Dialog title="Edit product" onClose={onClose}>
-      <form onSubmit={onSave} className="space-y-3">
-        {formError && <p className="text-sm text-error">{formError}</p>}
-        <label className="block text-xs font-semibold text-muted">
-          Name
-          <input name="name" required defaultValue={product.name} className={inputClass} />
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Category
-          <input name="category" defaultValue={product.category} className={inputClass} />
-        </label>
-        <label className="block text-xs font-semibold text-muted">
-          Price USD
-          <input
-            name="price_usd"
-            type="number"
-            min="0"
-            step="0.01"
-            required={offering !== null}
-            defaultValue={offering?.price_usd ?? 0}
-            disabled={offering === null}
-            className={inputClass}
-          />
-        </label>
-        <fieldset>
-          <legend className="text-xs font-semibold text-muted">Variants</legend>
-          <ul className="mt-2 space-y-2">
-            {variants.map((row, index) => (
-              <li key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-                <input
-                  value={row.name}
-                  placeholder="Variant"
-                  onChange={(event) =>
-                    setVariants((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, name: event.target.value } : item)),
-                    )
-                  }
-                  className={inputClass}
-                />
-                <input
-                  value={row.sku}
-                  placeholder="SKU"
-                  onChange={(event) =>
-                    setVariants((current) =>
-                      current.map((item, itemIndex) => (itemIndex === index ? { ...item, sku: event.target.value } : item)),
-                    )
-                  }
-                  className={inputClass}
-                />
-                <button
-                  type="button"
-                  className={ghostClass}
-                  onClick={() => setVariants((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                >
-                  Remove
-                </button>
-              </li>
-            ))}
-          </ul>
-          <button
-            type="button"
-            className={`${ghostClass} mt-2`}
-            onClick={() => setVariants((current) => [...current, { name: "", sku: "" }])}
-          >
-            Add variant
-          </button>
-        </fieldset>
-        <button type="submit" disabled={busy} className={buttonClass}>
-          {busy ? "Saving…" : "Save"}
-        </button>
-      </form>
-    </Dialog>
-  );
-}
-
-function ManageStockDialog({
-  product,
-  rows,
-  warehouses,
-  busy,
-  onClose,
-  onAdjust,
-  onAdd,
-}: {
-  product: ProductRow;
-  rows: StockRow[];
-  warehouses: Warehouse[];
-  busy: string | null;
-  onClose: () => void;
-  onAdjust: (inventoryId: string, available: number) => void;
-  onAdd: (body: { warehouse_id: string; sku: string; available: number }) => void;
-}) {
-  const [drafts, setDrafts] = useState<Record<string, string>>(
-    Object.fromEntries(rows.map((row) => [row.inventory_id, String(row.available)])),
-  );
-  const knownSkus = (product.content?.variants ?? []).map((variant) => variant.sku).filter(Boolean);
-
-  function onRecord(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    onAdd({
-      warehouse_id: String(data.get("warehouse_id") ?? ""),
       sku: String(data.get("sku") ?? ""),
-      available: Number(data.get("available") ?? 0),
+      mrp_inr: mrp,
+      currency: listingCurrency,
+      net_weight: String(data.get("net_weight") ?? ""),
+      brand: String(data.get("brand") ?? ""),
+      image_urls: urls,
+      authenticity_attested: true,
+      city_ids: [...selectedCities],
+      fulfilment_type: "SHIP_PHYSICAL",
     });
-    event.currentTarget.reset();
   }
 
   return (
-    <Dialog title={`Stock · ${product.name}`} onClose={onClose}>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted">No stock recorded for this product.</p>
-      ) : (
-        <ul className="space-y-3">
-          {rows.map((row) => (
-            <li key={row.inventory_id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                <span className="font-mono">{row.sku}</span>
-                <span className="text-muted"> · {row.warehouse_name}</span>
-              </span>
-              <span className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={0}
-                  value={drafts[row.inventory_id] ?? ""}
-                  onChange={(event) => setDrafts((current) => ({ ...current, [row.inventory_id]: event.target.value }))}
-                  className="w-20 rounded-lg border border-border bg-background px-2 py-1 text-sm"
-                />
-                <button
-                  type="button"
-                  disabled={busy !== null}
-                  className={ghostClass}
-                  onClick={() => onAdjust(row.inventory_id, Number(drafts[row.inventory_id] ?? 0))}
-                >
-                  {busy === `adjust-${row.inventory_id}` ? "Saving…" : "Adjust"}
-                </button>
-              </span>
-            </li>
-          ))}
-        </ul>
+    <Dialog title={product ? (isResubmit ? "Edit & Resubmit" : "Edit product") : "Add new product"} onClose={onClose} wide>
+      {isResubmit && product?.pa_reject_reason && (
+        <div className="mb-4 rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm">
+          <strong>Rejection reason:</strong> {product.pa_reject_reason}
+        </div>
       )}
-      {warehouses.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">
-          <Link href="/app/vendor/warehouses" className="font-semibold text-primary hover:underline">
-            Add a warehouse
-          </Link>{" "}
-          before recording stock.
-        </p>
-      ) : (
-        <form onSubmit={onRecord} className="mt-4 grid gap-2 sm:grid-cols-2">
-          <label className="text-xs font-semibold text-muted">
-            Warehouse
-            <select name="warehouse_id" required className={inputClass} defaultValue={warehouses[0]?.warehouse_id}>
-              {warehouses.map((warehouse) => (
-                <option key={warehouse.warehouse_id} value={warehouse.warehouse_id}>
-                  {warehouse.name}
+      <form onSubmit={onFormSubmit} className="space-y-4">
+        {formError && <p className="text-sm text-error">{formError}</p>}
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block text-xs font-semibold text-muted">
+            Product name *
+            <input name="name" required defaultValue={product?.name ?? ""} className={inputClass} />
+          </label>
+          <label className="block text-xs font-semibold text-muted">
+            Category *
+            <select name="category" required defaultValue={product?.category || CATEGORIES[0]} className={inputClass}>
+              {CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
                 </option>
               ))}
             </select>
           </label>
-          <label className="text-xs font-semibold text-muted">
-            SKU
-            <input name="sku" required list={`skus-${product.product_id}`} className={inputClass} />
-            <datalist id={`skus-${product.product_id}`}>
-              {knownSkus.map((sku) => (
-                <option key={sku} value={sku} />
+          <label className="block text-xs font-semibold text-muted">
+            SKU / barcode
+            <input name="sku" defaultValue={product?.sku ?? ""} className={inputClass} />
+          </label>
+          <label className="block text-xs font-semibold text-muted">
+            MRP / Price ({listingCurrency}) *
+            <input
+              name="mrp_inr"
+              type="number"
+              min="0.01"
+              step="0.01"
+              required
+              defaultValue={product?.mrp_inr || ""}
+              className={inputClass}
+            />
+          </label>
+          <label className="block text-xs font-semibold text-muted">
+            Net weight / volume
+            <input name="net_weight" defaultValue={product?.net_weight ?? ""} placeholder="e.g. 500g" className={inputClass} />
+          </label>
+          <label className="block text-xs font-semibold text-muted">
+            Brand name
+            <input name="brand" defaultValue={product?.brand ?? ""} className={inputClass} />
+          </label>
+        </div>
+        <label className="block text-xs font-semibold text-muted">
+          Description *
+          <textarea
+            name="description"
+            required
+            rows={3}
+            defaultValue={product?.description ?? ""}
+            className={inputClass}
+          />
+        </label>
+
+        <fieldset>
+          <legend className="text-xs font-semibold text-muted">Product images (2–5 URL inputs)</legend>
+          <div className="mt-2 space-y-2">
+            {imageUrls.map((url, index) => (
+              <input
+                key={index}
+                value={url}
+                placeholder={`Image URL ${index + 1}`}
+                onChange={(event) =>
+                  setImageUrls((current) => current.map((item, i) => (i === index ? event.target.value : item)))
+                }
+                className={inputClass}
+              />
+            ))}
+          </div>
+          {imageUrls.length < 5 && (
+            <button
+              type="button"
+              className={`${ghostClass} mt-2`}
+              onClick={() => setImageUrls((current) => [...current, ""])}
+            >
+              Add image URL
+            </button>
+          )}
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-semibold text-muted">Content authenticity checklist *</legend>
+          <div className="mt-2 space-y-2 rounded-lg border border-border bg-background p-3 text-sm">
+            {AUTH_CHECKS.map((text, index) => (
+              <label key={index} className="flex cursor-pointer gap-2">
+                <input
+                  type="checkbox"
+                  checked={checks[index]}
+                  onChange={(event) =>
+                    setChecks((current) => current.map((item, i) => (i === index ? event.target.checked : item)))
+                  }
+                  className="mt-0.5"
+                />
+                <span>{text}</span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="text-xs font-semibold text-muted">Serviceable cities *</legend>
+          {cities.length === 0 ? (
+            <p className="mt-2 text-sm text-muted">
+              No cities configured.{" "}
+              <Link href="/app/vendor/locations" className="font-semibold text-primary hover:underline">
+                Add locations
+              </Link>{" "}
+              first.
+            </p>
+          ) : (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {cities.map((city) => (
+                <label
+                  key={city.city_id}
+                  className="flex cursor-pointer items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCities.has(city.city_id)}
+                    onChange={() => toggleCity(city.city_id)}
+                  />
+                  {city.city_name}
+                </label>
               ))}
-            </datalist>
-          </label>
-          <label className="text-xs font-semibold text-muted">
-            Available
-            <input name="available" type="number" min={0} defaultValue={0} className={inputClass} />
-          </label>
-          <button type="submit" disabled={busy !== null} className={`${buttonClass} self-end`}>
-            {busy === "add-stock" ? "Saving…" : "Record stock"}
+            </div>
+          )}
+        </fieldset>
+
+        <div className="flex gap-2">
+          <button type="submit" disabled={busy || cities.length === 0} className={buttonClass}>
+            {busy ? "Submitting…" : isResubmit ? "Save & Resubmit" : "Submit for Review"}
           </button>
-        </form>
-      )}
+          <button type="button" className={ghostClass} onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </form>
     </Dialog>
   );
 }

@@ -4,6 +4,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useVendorPortal } from "@/components/vendor/portal";
 import { ApiError, VendorSettings, vendorApi } from "@/lib/api";
+import { ALLOWED_CURRENCIES } from "@/lib/money";
 
 const inputClass =
   "mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary";
@@ -40,6 +41,7 @@ export default function VendorSettingsPage() {
           bank_account_name: String(data.get("bank_account_name") ?? ""),
           bank_account_number: String(data.get("bank_account_number") ?? ""),
           bank_ifsc: String(data.get("bank_ifsc") ?? ""),
+          default_currency: String(data.get("default_currency") ?? "INR"),
         },
         ensureAccessToken,
       );
@@ -57,7 +59,8 @@ export default function VendorSettingsPage() {
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold tracking-tight">Vendor settings</h1>
       <p className="mt-1 text-sm text-muted">
-        Support email and bank details. Legal name and tax id stay as written at registration.
+        Support email, default currency, and bank details. Legal name and tax id stay as written at
+        registration.
       </p>
       {error && <p className="mt-4 text-sm text-error">{error}</p>}
       <section className="mt-6 rounded-xl border border-border bg-surface p-4 text-sm">
@@ -68,8 +71,27 @@ export default function VendorSettingsPage() {
         <p className="font-semibold">{settings?.tax_id || "—"}</p>
       </section>
       {settings && (
-        <form key={settings.bank_account_number + settings.bank_ifsc + settings.support_email} onSubmit={(event) => void onSave(event)} className="mt-4 space-y-3 rounded-xl border border-border bg-surface p-4">
+        <form
+          key={`${settings.bank_account_number}-${settings.bank_ifsc}-${settings.support_email}-${settings.default_currency}`}
+          onSubmit={(event) => void onSave(event)}
+          className="mt-4 space-y-3 rounded-xl border border-border bg-surface p-4"
+        >
           <h2 className="font-semibold">Payout details</h2>
+          <label className="block text-xs font-semibold text-muted">
+            Default currency
+            <select
+              name="default_currency"
+              required
+              defaultValue={settings.default_currency || "INR"}
+              className={inputClass}
+            >
+              {ALLOWED_CURRENCIES.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+          </label>
           <label className="block text-xs font-semibold text-muted">
             Support email
             <input name="support_email" type="email" required defaultValue={settings.support_email} className={inputClass} />

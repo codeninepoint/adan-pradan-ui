@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
 import { RequireAuth } from "@/components/auth-guards";
 import { useAuth } from "@/components/auth-provider";
@@ -37,6 +38,7 @@ const buttonClass =
   "cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50";
 
 function PluginsBody() {
+  const router = useRouter();
   const { ensureAccessToken, profile, ready } = useAuth();
   const isOperator = Boolean(profile?.is_platform_operator);
   const [vendorId, setVendorIdState] = useState<string | null>(null);
@@ -64,6 +66,9 @@ function PluginsBody() {
           saveVendorId(found.vendor_id);
           setVendorIdState(found.vendor_id);
           setVendorLookup("found");
+          if (!isOperator) {
+            router.replace("/app/vendor/my-plugins");
+          }
           return;
         } catch (err) {
           if (err instanceof ApiError && err.status === 404) continue;
@@ -83,7 +88,7 @@ function PluginsBody() {
     return () => {
       cancelled = true;
     };
-  }, [ready, profile, ensureAccessToken]);
+  }, [ready, profile, ensureAccessToken, isOperator, router]);
 
   useEffect(() => {
     if (!ready || !vendorId) {

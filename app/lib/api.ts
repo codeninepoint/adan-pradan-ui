@@ -115,6 +115,8 @@ export type MeResponse = {
   display_name: string;
   status: string;
   is_platform_operator?: boolean;
+  last_login_at?: string | null;
+  mfa_enabled?: boolean;
   organizations: MeOrganization[];
   tenants: MeTenant[];
 };
@@ -360,6 +362,9 @@ export type ServiceAccountItem = {
   description?: string | null;
   status: string;
   key_prefix?: string | null;
+  account_type?: string;
+  last_used_at?: string | null;
+  expires_at?: string | null;
 };
 
 export type CreateServiceAccountResponse = {
@@ -492,6 +497,7 @@ export type VendorSettings = {
   bank_ifsc: string;
   notify_install: boolean;
   notify_payout: boolean;
+  default_currency: string;
 };
 
 export const vendorApi = {
@@ -633,6 +639,7 @@ export type CartLine = {
   plan_name: string;
   quantity: number;
   unit_price: number;
+  currency: string;
   fulfilment_type: string;
   billing_period: string;
 };
@@ -672,8 +679,112 @@ export type OrderDetail = {
     quantity: number;
     fulfilment_type: string;
     unit_price: number;
+    currency: string;
     status: string;
   }[];
+};
+
+export type VendorProductItem = {
+  product_id: string;
+  name: string;
+  status: string;
+  fulfilment_type: string;
+  category: string;
+  content: { variants?: { name: string; sku: string }[] };
+  pa_status: string;
+  pa_reject_reason: string;
+  mrp_inr: number;
+  image_count: number;
+  cities: string[];
+  stock_status: string;
+  visibility: string;
+  brand: string;
+  net_weight: string;
+  sku: string;
+  image_urls: string[];
+  description?: string;
+  currency: string;
+};
+
+export type ServiceCityItem = {
+  city_id: string;
+  city_name: string;
+  warehouse_id: string;
+  pincodes: string[];
+  currency: string | null;
+  resolved_currency: string;
+};
+
+export type VendorReturnItem = {
+  return_id: string;
+  order_id: string;
+  line_id: string;
+  product_name: string;
+  reason: string;
+  notes: string;
+  status: string;
+  created_at: string;
+  customer_name: string;
+  quantity: number;
+  amount: number;
+  currency: string;
+  refund_amount: number | null;
+  refund_currency: string;
+  refund_method: string | null;
+  vendor_notes: string;
+  decided_at: string;
+  refunded_at: string;
+};
+
+export type ProductCityAssignmentItem = {
+  product_id: string;
+  product_name: string;
+  category: string;
+  cities: string[];
+  status: string;
+};
+
+export type SubmitProductListingBody = {
+  product_id?: string;
+  name: string;
+  description: string;
+  category: string;
+  sku: string;
+  mrp_inr: number;
+  currency?: string;
+  net_weight: string;
+  brand: string;
+  image_urls: string[];
+  authenticity_attested: boolean;
+  city_ids: string[];
+  fulfilment_type?: "SHIP_PHYSICAL";
+};
+
+export type InventoryRowItem = {
+  inventory_id: string;
+  product_id: string;
+  product_name: string;
+  warehouse_id: string;
+  warehouse_name: string;
+  sku: string;
+  available: number;
+  reserved: number;
+  reorder_threshold: number;
+  city_name: string | null;
+  status: string | null;
+};
+
+export type CityInventoryRowItem = {
+  inventory_id: string;
+  product_id: string;
+  product_name: string;
+  city_id: string;
+  city_name: string;
+  sku: string;
+  available: number;
+  reserved: number;
+  reorder_threshold: number;
+  status: string;
 };
 
 export type CatalogItem = {
@@ -683,24 +794,63 @@ export type CatalogItem = {
   vendor: string;
   vendor_id: string;
   plan_name: string;
+  price: number;
+  currency: string;
   price_usd: number;
   billing_period: string;
   fulfilment_type: string;
   category: string;
 };
 
+export type VendorPluginItem = {
+  plugin_id: string;
+  name: string;
+  slug: string;
+  status: string;
+  latest_version: string | null;
+  latest_version_status: string | null;
+  category: string;
+  short_description: string;
+  review_notes: string;
+  submitted_at: string;
+  changelog: string;
+};
+
+export type VendorStandardPluginItem = {
+  plugin_id: string;
+  name: string;
+  slug: string;
+  category: string;
+  short_description: string;
+  version: string | null;
+  tags: string[];
+  vendor_count: number;
+  activation_status: string;
+};
+
+export type SubmitPluginBundleBody = {
+  name: string;
+  version: string;
+  category: string;
+  description?: string;
+  artifact_url: string;
+  sbom_url?: string;
+  plugin_id?: string;
+  slug?: string;
+};
+
 export const marketplaceApi = {
   plugins: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
-    apiAuthed<{
-      plugins: {
-        plugin_id: string;
-        name: string;
-        slug: string;
-        status: string;
-        latest_version: string | null;
-        latest_version_status: string | null;
-      }[];
-    }>(`/api/v1/vendors/${vendorId}/plugins`, { ensureAccessToken, method: "GET" }),
+    apiAuthed<{ plugins: VendorPluginItem[] }>(`/api/v1/vendors/${vendorId}/plugins`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorPlugins: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ plugins: VendorPluginItem[] }>(`/api/v1/vendors/${vendorId}/plugins`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
 
   offerings: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
@@ -716,15 +866,96 @@ export const marketplaceApi = {
 
   vendorProducts: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
-      products: {
-        product_id: string;
-        name: string;
-        status: string;
-        fulfilment_type: string;
-        category: string;
-        content: { variants?: { name: string; sku: string }[] };
-      }[];
+      products: VendorProductItem[];
     }>(`/api/v1/vendors/${vendorId}/products`, { ensureAccessToken, method: "GET" }),
+
+  serviceCities: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{ cities: ServiceCityItem[] }>(`/api/v1/vendors/${vendorId}/service-cities`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  addServiceCity: (
+    vendorId: string,
+    body: { city_name: string; currency?: string | null },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<ServiceCityItem>(`/api/v1/vendors/${vendorId}/service-cities`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updateServiceCity: (
+    vendorId: string,
+    cityId: string,
+    body: { currency?: string | null },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<ServiceCityItem>(`/api/v1/vendors/${vendorId}/service-cities/${cityId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  deleteServiceCity: (
+    vendorId: string,
+    cityId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<void>(`/api/v1/vendors/${vendorId}/service-cities/${cityId}`, {
+      ensureAccessToken,
+      method: "DELETE",
+    }),
+
+  setCityPincodes: (
+    vendorId: string,
+    cityId: string,
+    pincodes: string[],
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<ServiceCityItem>(`/api/v1/vendors/${vendorId}/service-cities/${cityId}/pincodes`, {
+      ensureAccessToken,
+      method: "PUT",
+      body: { pincodes },
+    }),
+
+  productCityAssignments: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ items: ProductCityAssignmentItem[] }>(
+      `/api/v1/vendors/${vendorId}/product-city-assignments`,
+      { ensureAccessToken, method: "GET" },
+    ),
+
+  setProductServiceCities: (
+    productId: string,
+    city_ids: string[],
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<ProductCityAssignmentItem>(`/api/v1/products/${productId}/service-cities`, {
+      ensureAccessToken,
+      method: "PUT",
+      body: { city_ids },
+    }),
+
+  submitProductListing: (
+    vendorId: string,
+    body: SubmitProductListingBody,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorProductItem>(`/api/v1/vendors/${vendorId}/products/submit`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  resubmitProduct: (productId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<VendorProductItem>(`/api/v1/products/${productId}/resubmit`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
 
   vendorWarehouses: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
@@ -767,23 +998,27 @@ export const marketplaceApi = {
       sku_count: number;
     }>(`/api/v1/vendors/${vendorId}/warehouses/${warehouseId}`, { ensureAccessToken, method: "PATCH", body }),
 
-  vendorInventory: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
-    apiAuthed<{
-      rows: {
-        inventory_id: string;
-        product_id: string;
-        product_name: string;
-        warehouse_id: string;
-        warehouse_name: string;
-        sku: string;
-        available: number;
-        reserved: number;
-      }[];
-    }>(`/api/v1/vendors/${vendorId}/inventory`, { ensureAccessToken, method: "GET" }),
+  vendorInventory: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    view?: "by_city",
+  ) => {
+    const query = view ? `?view=${encodeURIComponent(view)}` : "";
+    return apiAuthed<{
+      rows: InventoryRowItem[];
+      city_rows: CityInventoryRowItem[];
+    }>(`/api/v1/vendors/${vendorId}/inventory${query}`, { ensureAccessToken, method: "GET" });
+  },
 
   addInventory: (
     vendorId: string,
-    body: { product_id: string; warehouse_id: string; sku: string; available: number },
+    body: {
+      product_id: string;
+      warehouse_id: string;
+      sku: string;
+      available: number;
+      reorder_threshold?: number;
+    },
     ensureAccessToken: (force?: boolean) => Promise<string | null>,
   ) =>
     apiAuthed<{ inventory_id: string; available: number }>(`/api/v1/vendors/${vendorId}/inventory`, {
@@ -797,25 +1032,49 @@ export const marketplaceApi = {
     inventoryId: string,
     available: number,
     ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    reorder_threshold?: number,
   ) =>
     apiAuthed<{ inventory_id: string; available: number }>(
       `/api/v1/vendors/${vendorId}/inventory/${inventoryId}`,
-      { ensureAccessToken, method: "PATCH", body: { available } },
+      {
+        ensureAccessToken,
+        method: "PATCH",
+        body: { available, ...(reorder_threshold !== undefined ? { reorder_threshold } : {}) },
+      },
     ),
 
   vendorReturns: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
-    apiAuthed<{
-      returns: {
-        return_id: string;
-        order_id: string;
-        product_name: string;
-        reason: string;
-        notes: string;
-        status: string;
-        created_at: string;
-        customer_name: string;
-      }[];
-    }>(`/api/v1/vendors/${vendorId}/returns`, { ensureAccessToken, method: "GET" }),
+    apiAuthed<{ returns: VendorReturnItem[] }>(`/api/v1/vendors/${vendorId}/returns`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  decideReturn: (
+    vendorId: string,
+    returnId: string,
+    body: {
+      decision: "approved" | "rejected";
+      refund_amount?: number;
+      refund_method?: string;
+      vendor_notes?: string;
+    },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorReturnItem>(`/api/v1/vendors/${vendorId}/returns/${returnId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  issueReturnRefund: (
+    vendorId: string,
+    returnId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorReturnItem>(`/api/v1/vendors/${vendorId}/returns/${returnId}/refund`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
 
   vendorCustomers: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
@@ -825,14 +1084,51 @@ export const marketplaceApi = {
         order_count: number;
         total: number;
         last_order_at: string;
+        city: string;
+        currency: string;
+        segment: string;
       }[];
     }>(`/api/v1/vendors/${vendorId}/customers`, { ensureAccessToken, method: "GET" }),
+
+  vendorReviews: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<{
+      reviews: {
+        id: string;
+        customer_name: string;
+        product_name: string;
+        rating: number;
+        comment: string;
+        created_at: string;
+      }[];
+    }>(`/api/v1/vendors/${vendorId}/reviews`, { ensureAccessToken, method: "GET" }),
 
   vendorPayouts: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
       currency: string;
-      this_period: { period: string; gross: number; platform_fee: number; net: number; status: string } | null;
-      payouts: { period: string; gross: number; platform_fee: number; net: number; status: string }[];
+      this_period: {
+        settlement_id: string;
+        period: string;
+        gross: number;
+        platform_fee: number;
+        net: number;
+        status: string;
+      } | null;
+      summary: {
+        earned_this_month: number;
+        next_settlement: number | null;
+        next_settlement_due_days: number | null;
+        commission_this_month: number;
+        commission_rate_pct: number;
+        total_settled: number;
+      };
+      payouts: {
+        settlement_id: string;
+        period: string;
+        gross: number;
+        platform_fee: number;
+        net: number;
+        status: string;
+      }[];
     }>(`/api/v1/vendors/${vendorId}/payouts`, { ensureAccessToken, method: "GET" }),
 
   vendorOrders: (
@@ -850,6 +1146,7 @@ export const marketplaceApi = {
         fulfilment_type: string;
         unit_price: number;
         total: number;
+        currency: string;
         status: string;
         placed_at: string;
         customer_name: string;
@@ -897,6 +1194,51 @@ export const marketplaceApi = {
       pending_plugin_reviews: number;
     }>(`/api/v1/vendors/${vendorId}/portal`, { ensureAccessToken, method: "GET" }),
 
+  vendorStandardPlugins: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    params?: { q?: string; category?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set("q", params.q);
+    if (params?.category) search.set("category", params.category);
+    const query = search.toString();
+    return apiAuthed<{ items: VendorStandardPluginItem[] }>(
+      `/api/v1/vendors/${vendorId}/standard-plugins${query ? `?${query}` : ""}`,
+      { ensureAccessToken, method: "GET" },
+    );
+  },
+
+  activateStandardPlugin: (
+    vendorId: string,
+    pluginId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorStandardPluginItem>(
+      `/api/v1/vendors/${vendorId}/standard-plugins/${pluginId}/activate`,
+      { ensureAccessToken, method: "POST" },
+    ),
+
+  deactivateStandardPlugin: (
+    vendorId: string,
+    pluginId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorStandardPluginItem>(
+      `/api/v1/vendors/${vendorId}/standard-plugins/${pluginId}/deactivate`,
+      { ensureAccessToken, method: "POST" },
+    ),
+
+  submitPluginBundle: (
+    vendorId: string,
+    body: SubmitPluginBundleBody,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ plugin_id: string; version_id: string; slug: string; version: string; status: string }>(
+      `/api/v1/vendors/${vendorId}/plugins/submit`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
   registerPlugin: (
     vendorId: string,
     body: { name: string; slug: string; category: string; short_description: string },
@@ -928,19 +1270,37 @@ export const marketplaceApi = {
       { ensureAccessToken, method: "PUT", body: { capabilities } },
     ),
 
-  pendingReviews: (ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
-    apiAuthed<{
+  pendingReviews: (
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    params?: { status?: string; claimed?: boolean; risk?: string; q?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.claimed !== undefined) search.set("claimed", String(params.claimed));
+    if (params?.risk) search.set("risk", params.risk);
+    if (params?.q) search.set("q", params.q);
+    const query = search.toString();
+    return apiAuthed<{
       items: {
         version_id: string;
         plugin_id: string;
         plugin_slug: string;
         version: string;
         status: string;
-        vendor_id: string;
+        vendor_id: string | null;
         vendor_name: string;
         claimed_by: string | null;
+        submitted_at?: string;
+        risk_level?: string;
+        decided_by?: string | null;
+        decided_at?: string | null;
+        review_notes?: string;
       }[];
-    }>("/api/v1/admin/plugin-reviews", { ensureAccessToken, method: "GET" }),
+    }>(`/api/v1/admin/plugin-reviews${query ? `?${query}` : ""}`, {
+      ensureAccessToken,
+      method: "GET",
+    });
+  },
 
   decideVersion: (
     versionId: string,
@@ -1049,7 +1409,14 @@ export const marketplaceApi = {
       vendor: string;
       category: string;
       capabilities: string[];
-      offerings: { offering_id: string; plan_name: string; price_usd: number; billing_period: string }[];
+      offerings: {
+        offering_id: string;
+        plan_name: string;
+        price: number;
+        currency: string;
+        price_usd: number;
+        billing_period: string;
+      }[];
     }>(`/api/v1/marketplace/products/${productId}`),
 
   review: (versionId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
@@ -1083,20 +1450,29 @@ export const marketplaceApi = {
 
   adminVendors: (
     ensureAccessToken: (force?: boolean) => Promise<string | null>,
-    status?: string,
-  ) =>
-    apiAuthed<{
+    params?: { status?: string; q?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.q) search.set("q", params.q);
+    const query = search.toString();
+    return apiAuthed<{
       results: {
         vendor_id: string;
         legal_name: string;
         status: string;
         product_count: number;
         active_installs: number;
+        plugin_count: number;
+        warehouse_count: number;
+        kyc_status: string;
+        gmv_mtd: number;
       }[];
-    }>(`/api/v1/admin/vendors${status ? `?status=${encodeURIComponent(status)}` : ""}`, {
+    }>(`/api/v1/admin/vendors${query ? `?${query}` : ""}`, {
       ensureAccessToken,
       method: "GET",
-    }),
+    });
+  },
 
   suspendVendor: (
     vendorId: string,
@@ -1107,6 +1483,15 @@ export const marketplaceApi = {
       `/api/v1/admin/vendors/${vendorId}/suspend`,
       { ensureAccessToken, method: "POST", body: { reason } },
     ),
+
+  reinstateVendor: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ status: string }>(`/api/v1/admin/vendors/${vendorId}/reinstate`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
 
   install: (
     tenantId: string,
@@ -1308,5 +1693,501 @@ export const marketplaceApi = {
       ensureAccessToken,
       tenantId,
       method: "GET",
+    }),
+};
+
+export type PlatformAdminEnsure = (force?: boolean) => Promise<string | null>;
+
+export const platformAdminApi = {
+  reviewStats: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      pending: number;
+      in_review: number;
+      published: number;
+      rejected: number;
+      standard_plugins: number;
+    }>("/api/v1/admin/plugin-reviews/stats", { ensureAccessToken, method: "GET" }),
+
+  standardPlugins: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        plugin_id: string | null;
+        category: string;
+        name: string | null;
+        slug: string | null;
+        status: string | null;
+        short_description: string | null;
+        version: string | null;
+        requirements: unknown[];
+        updated_at: string | null;
+      }[];
+    }>("/api/v1/admin/standard-plugins", { ensureAccessToken, method: "GET" }),
+
+  createStandardPlugin: (
+    body: {
+      name: string;
+      slug: string;
+      category: string;
+      short_description?: string;
+      version: string;
+      artifact_url: string;
+      changelog?: string;
+      requirements?: unknown[];
+      publish?: boolean;
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<{ plugin_id: string; status: string }>("/api/v1/admin/standard-plugins", {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updateStandardPlugin: (
+    pluginId: string,
+    body: { name?: string; short_description?: string; requirements?: unknown[] },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed(`/api/v1/admin/standard-plugins/${pluginId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  publishStandardPlugin: (pluginId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/standard-plugins/${pluginId}/publish`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  unpublishStandardPlugin: (pluginId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/standard-plugins/${pluginId}/unpublish`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  deprecateStandardPlugin: (pluginId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/standard-plugins/${pluginId}/deprecate`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  deleteStandardPlugin: (pluginId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<void>(`/api/v1/admin/standard-plugins/${pluginId}`, {
+      ensureAccessToken,
+      method: "DELETE",
+    }),
+
+  users: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { q?: string; principal_type?: string; status?: string; page?: number },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set("q", params.q);
+    if (params?.principal_type) search.set("principal_type", params.principal_type);
+    if (params?.status) search.set("status", params.status);
+    if (params?.page) search.set("page", String(params.page));
+    const query = search.toString();
+    return apiAuthed<{
+      items: {
+        user_id: string;
+        principal_id: string;
+        email: string;
+        display_name: string;
+        principal_type: string;
+        status: string;
+        tenant_id: string | null;
+        tenant_name: string | null;
+        org_name: string | null;
+        role_label: string | null;
+        is_platform_operator: boolean;
+        last_active_at: string | null;
+      }[];
+      total: number;
+      page: number;
+      page_size: number;
+    }>(`/api/v1/admin/users${query ? `?${query}` : ""}`, { ensureAccessToken, method: "GET" });
+  },
+
+  suspendUser: (userId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/users/${userId}/suspend`, { ensureAccessToken, method: "POST" }),
+
+  reinstateUser: (userId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/users/${userId}/reinstate`, { ensureAccessToken, method: "POST" }),
+
+  blockUser: (userId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/users/${userId}/block`, { ensureAccessToken, method: "POST" }),
+
+  resetMfa: (userId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/users/${userId}/reset-mfa`, { ensureAccessToken, method: "POST" }),
+
+  promoteOperator: (userId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/users/${userId}/promote-operator`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  permissions: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{ items: { code: string; scope_type: string; description: string | null }[] }>(
+      "/api/v1/admin/permissions",
+      { ensureAccessToken, method: "GET" },
+    ),
+
+  roles: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        role_id: string | null;
+        name: string;
+        scope_type: string;
+        is_system_role: boolean;
+        tenant_id: string | null;
+        status: string;
+        permission_codes: string[];
+      }[];
+    }>("/api/v1/admin/roles", { ensureAccessToken, method: "GET" }),
+
+  createRole: (
+    body: {
+      name: string;
+      based_on: string;
+      tenant_id: string;
+      add_permissions?: string[];
+      remove_permissions?: string[];
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed("/api/v1/admin/roles", { ensureAccessToken, method: "POST", body }),
+
+  roleBindings: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        binding_id: string;
+        principal_id: string;
+        user_email: string | null;
+        role_id: string;
+        role_name: string;
+        scope_type: string;
+        tenant_id: string | null;
+        tenant_name: string | null;
+        granted_by: string | null;
+        since: string;
+        status: string;
+      }[];
+    }>("/api/v1/admin/role-bindings", { ensureAccessToken, method: "GET" }),
+
+  revokeBinding: (bindingId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/role-bindings/${bindingId}`, {
+      ensureAccessToken,
+      method: "DELETE",
+    }),
+
+  vendorStats: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      active: number;
+      pending_verification: number;
+      suspended: number;
+      total_plugins: number;
+    }>("/api/v1/admin/vendors/stats", { ensureAccessToken, method: "GET" }),
+
+  reinstateVendor: (vendorId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{ status: string }>(`/api/v1/admin/vendors/${vendorId}/reinstate`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  vendors: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { status?: string; q?: string },
+  ) => marketplaceApi.adminVendors(ensureAccessToken, params),
+
+  suspendVendor: (
+    vendorId: string,
+    reason: string,
+    ensureAccessToken: PlatformAdminEnsure,
+  ) => marketplaceApi.suspendVendor(vendorId, reason, ensureAccessToken),
+
+  tenants: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { q?: string; org_type?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.q) search.set("q", params.q);
+    if (params?.org_type) search.set("org_type", params.org_type);
+    const query = search.toString();
+    return apiAuthed<{
+      items: {
+        tenant_id: string;
+        tenant_name: string;
+        org_id: string;
+        org_name: string;
+        org_type: string;
+        participation: string;
+        member_count: number;
+        status: string;
+      }[];
+    }>(`/api/v1/admin/tenants${query ? `?${query}` : ""}`, { ensureAccessToken, method: "GET" });
+  },
+
+  tenantStats: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      active: number;
+      suspended: number;
+      total: number;
+      individual: number;
+      organisation: number;
+      vendor: number;
+    }>("/api/v1/admin/tenants/stats", { ensureAccessToken, method: "GET" }),
+
+  suspendTenant: (tenantId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/tenants/${tenantId}/suspend`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  reinstateTenant: (tenantId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/tenants/${tenantId}/reinstate`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  provisionTenant: (
+    body: { email: string; org_name?: string; tenant_name?: string },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed("/api/v1/admin/tenants", { ensureAccessToken, method: "POST", body }),
+
+  products: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { pa_status?: string; q?: string; vendor_id?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.pa_status) search.set("pa_status", params.pa_status);
+    if (params?.q) search.set("q", params.q);
+    if (params?.vendor_id) search.set("vendor_id", params.vendor_id);
+    const query = search.toString();
+    return apiAuthed<{
+      items: {
+        product_id: string;
+        name: string;
+        vendor_id: string;
+        vendor_name: string;
+        category: string;
+        status: string;
+        pa_status: string;
+        pa_reject_reason: string;
+        fulfilment_type: string;
+        submitted_at: string;
+      }[];
+    }>(`/api/v1/admin/products${query ? `?${query}` : ""}`, { ensureAccessToken, method: "GET" });
+  },
+
+  productStats: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      pending_review: number;
+      live: number;
+      rejected: number;
+      not_submitted: number;
+      warehouse_locations: number;
+    }>("/api/v1/admin/products/stats", { ensureAccessToken, method: "GET" }),
+
+  approveProduct: (productId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/products/${productId}/approve`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  rejectProduct: (
+    productId: string,
+    reason: string,
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed(`/api/v1/admin/products/${productId}/reject`, {
+      ensureAccessToken,
+      method: "POST",
+      body: { reason },
+    }),
+
+  locationsSummary: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        location: string;
+        warehouse_count: number;
+        vendor_count: number;
+        units_stored: number;
+      }[];
+    }>("/api/v1/admin/locations/summary", { ensureAccessToken, method: "GET" }),
+
+  dashboard: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      tenant_count: number;
+      active_tenants: number;
+      vendor_count: number;
+      verified_vendors: number;
+      user_count: number;
+      pending_plugin_reviews: number;
+      pending_product_reviews: number;
+      revenue_mtd: number;
+      recent_events: {
+        event_action?: string;
+        actor_email?: string | null;
+        created_at?: string;
+      }[];
+    }>("/api/v1/admin/dashboard", { ensureAccessToken, method: "GET" }),
+
+  analytics: (ensureAccessToken: PlatformAdminEnsure, tab: string) =>
+    apiAuthed<Record<string, unknown>>(
+      `/api/v1/admin/analytics?tab=${encodeURIComponent(tab)}`,
+      { ensureAccessToken, method: "GET" },
+    ),
+
+  auditLog: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { action?: string; actor?: string; from?: string; to?: string; q?: string; page?: number },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.action) search.set("action", params.action);
+    if (params?.actor) search.set("actor", params.actor);
+    if (params?.from) search.set("from", params.from);
+    if (params?.to) search.set("to", params.to);
+    if (params?.q) search.set("q", params.q);
+    if (params?.page) search.set("page", String(params.page));
+    const query = search.toString();
+    return apiAuthed<{
+      items: {
+        id: string;
+        event_action: string;
+        actor_user_id: string | null;
+        actor_email: string | null;
+        tenant_id: string | null;
+        payload: Record<string, unknown>;
+        created_at: string;
+      }[];
+      total: number;
+      page: number;
+      page_size: number;
+    }>(`/api/v1/admin/audit-log${query ? `?${query}` : ""}`, { ensureAccessToken, method: "GET" });
+  },
+
+  policies: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        id: string;
+        name: string;
+        scope: string;
+        enforcement: string;
+        applies_to: string;
+        status: string;
+        body: Record<string, unknown>;
+      }[];
+    }>("/api/v1/admin/policies", { ensureAccessToken, method: "GET" }),
+
+  createPolicy: (
+    body: {
+      name: string;
+      scope: string;
+      enforcement?: string;
+      applies_to?: string;
+      body?: Record<string, unknown>;
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed("/api/v1/admin/policies", { ensureAccessToken, method: "POST", body }),
+
+  updatePolicy: (
+    policyId: string,
+    body: {
+      name?: string;
+      status?: string;
+      enforcement?: string;
+      applies_to?: string;
+      body?: Record<string, unknown>;
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed(`/api/v1/admin/policies/${policyId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  togglePolicy: (policyId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/policies/${policyId}/toggle`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  config: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{ values: Record<string, unknown> }>("/api/v1/admin/config", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  patchConfig: (
+    updates: Record<string, unknown>,
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<{ values: Record<string, unknown> }>("/api/v1/admin/config", {
+      ensureAccessToken,
+      method: "PATCH",
+      body: { updates },
+    }),
+
+  team: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: {
+        id: string;
+        user_id: string | null;
+        email: string;
+        platform_role: string;
+        status: string;
+        mfa_enabled: boolean;
+        invited_at: string;
+        activated_at: string | null;
+      }[];
+    }>("/api/v1/admin/team", { ensureAccessToken, method: "GET" }),
+
+  inviteTeam: (
+    body: { email: string; platform_role: string; invite_note?: string },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed("/api/v1/admin/team/invite", { ensureAccessToken, method: "POST", body }),
+
+  updateTeamRole: (
+    memberId: string,
+    platform_role: string,
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed(`/api/v1/admin/team/${memberId}/role`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body: { platform_role },
+    }),
+
+  suspendTeamMember: (memberId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/team/${memberId}/suspend`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  reactivateTeamMember: (memberId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/team/${memberId}/reactivate`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  resetTeamMfa: (memberId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed(`/api/v1/admin/team/${memberId}/reset-mfa`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
+
+  transferSuperAdmin: (
+    body: { recipient_member_id: string; password: string },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed("/api/v1/admin/team/super-admin/transfer", {
+      ensureAccessToken,
+      method: "POST",
+      body,
     }),
 };

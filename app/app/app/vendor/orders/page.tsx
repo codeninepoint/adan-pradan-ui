@@ -3,28 +3,15 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { useVendorPortal } from "@/components/vendor/portal";
+import {
+  groupVendorOrders,
+  itemSummary,
+  type VendorOrder,
+  type VendorOrderLine,
+} from "@/components/vendor/order-grouping";
 import { ORDER_STEPPER, orderStatusLabel } from "@/components/vendor/order-status";
 import { ApiError, marketplaceApi } from "@/lib/api";
-
-type VendorOrderLine = {
-  order_id: string;
-  line_id: string;
-  product_name: string;
-  quantity: number;
-  total: number;
-  status: string;
-  placed_at: string;
-  customer_name: string;
-  line1: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-  courier: string;
-  tracking_number: string;
-};
-
-type VendorOrder = VendorOrderLine & { items: VendorOrderLine[]; amount: number };
+import { formatMoney } from "@/lib/money";
 
 const buttonClass =
   "cursor-pointer rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50";
@@ -54,7 +41,7 @@ export default function VendorOrdersPage() {
 
   if (!vendor) return null;
 
-  const orders = groupOrders(lines);
+  const orders = groupVendorOrders(lines);
   const statuses = [...new Set(orders.map((order) => order.status))];
   const visible = status === "all" ? orders : orders.filter((order) => order.status === status);
 
@@ -62,7 +49,7 @@ export default function VendorOrdersPage() {
     <div>
       <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
       <p className="mt-1 text-sm text-muted">
-        Orders for this vendor. Amounts are the stored USD price. Open an order to move it through fulfilment.
+        Orders for this vendor. Open an order to move it through fulfilment, or use the Fulfilment pipeline.
       </p>
       {error && <p className="mt-4 text-sm text-error">{error}</p>}
       <div className="mt-5 flex flex-wrap gap-2">
@@ -99,7 +86,9 @@ export default function VendorOrdersPage() {
                   <td className="px-4 py-3 font-mono text-xs">{order.order_id.slice(0, 8)}</td>
                   <td className="px-4 py-3">{order.customer_name}</td>
                   <td className="px-4 py-3 text-muted">{itemSummary(order.items)}</td>
-                  <td className="px-4 py-3 font-semibold">${order.amount.toFixed(2)}</td>
+                  <td className="px-4 py-3 font-semibold">
+                    {formatMoney(order.amount, order.currency || "INR")}
+                  </td>
                   <td className="px-4 py-3 text-muted">{formatWhen(order.placed_at)}</td>
                   <td className="px-4 py-3 text-xs font-semibold">{orderStatusLabel(order.status)}</td>
                   <td className="px-4 py-3">
@@ -126,31 +115,13 @@ export default function VendorOrdersPage() {
             );
             const data = await marketplaceApi.vendorOrders(vendor.vendor_id, ensureAccessToken);
             setLines(data.lines);
-            const refreshed = groupOrders(data.lines).find((order) => order.order_id === open.order_id);
+            const refreshed = groupVendorOrders(data.lines).find((order) => order.order_id === open.order_id);
             setOpen(refreshed ?? null);
           }}
         />
       )}
     </div>
   );
-}
-
-function groupOrders(lines: VendorOrderLine[]): VendorOrder[] {
-  const grouped = new Map<string, VendorOrder>();
-  for (const line of lines) {
-    const current = grouped.get(line.order_id);
-    if (!current) {
-      grouped.set(line.order_id, { ...line, items: [line], amount: line.total });
-      continue;
-    }
-    current.items.push(line);
-    current.amount += line.total;
-  }
-  return [...grouped.values()];
-}
-
-function itemSummary(items: VendorOrderLine[]) {
-  return items.map((item) => `${item.product_name} ×${item.quantity}`).join(", ");
 }
 
 function formatWhen(value: string) {
@@ -257,7 +228,7 @@ function OrderDialog({
         </div>
         <div className="flex justify-between gap-3 border-b border-border py-2">
           <dt className="text-muted">Amount</dt>
-          <dd className="font-semibold">${order.amount.toFixed(2)}</dd>
+          <dd className="font-semibold">{formatMoney(order.amount, order.currency || "INR")}</dd>
         </div>
       </dl>
       {!terminal && stepIndex >= 0 && (

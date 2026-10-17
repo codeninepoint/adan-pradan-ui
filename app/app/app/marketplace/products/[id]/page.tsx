@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { canInstall, fulfilmentLabel } from "@/components/marketplace/cards";
 import { ApiError, marketplaceApi, type CatalogItem } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 import { rememberProduct } from "@/lib/recent";
 
 type Detail = {
@@ -15,7 +16,14 @@ type Detail = {
   vendor: string;
   category: string;
   capabilities: string[];
-  offerings: { offering_id: string; plan_name: string; price_usd: number; billing_period: string }[];
+  offerings: {
+    offering_id: string;
+    plan_name: string;
+    price: number;
+    currency: string;
+    price_usd: number;
+    billing_period: string;
+  }[];
 };
 
 export default function ProductPage() {
@@ -31,6 +39,7 @@ export default function ProductPage() {
       setDetail(data);
       const first = data.offerings[0];
       if (first) {
+        const amount = first.price ?? first.price_usd;
         const card: CatalogItem = {
           offering_id: first.offering_id,
           product_id: data.product_id,
@@ -38,7 +47,9 @@ export default function ProductPage() {
           vendor: data.vendor,
           vendor_id: "",
           plan_name: first.plan_name,
-          price_usd: first.price_usd,
+          price: amount,
+          currency: first.currency || "INR",
+          price_usd: amount,
           billing_period: first.billing_period,
           fulfilment_type: data.fulfilment_type,
           category: data.category,
@@ -114,7 +125,8 @@ export default function ProductPage() {
               <span className="font-semibold">{offering.plan_name}</span>
               <span className="text-muted">
                 {" "}
-                · ${offering.price_usd} / {offering.billing_period}
+                · {formatMoney(offering.price ?? offering.price_usd, offering.currency)} /{" "}
+                {offering.billing_period}
               </span>
             </p>
             {canInstall(detail.fulfilment_type) ? (

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AddressForm, emptyAddress, type AddressDraft } from "@/components/marketplace/address-form";
 import { useAuth } from "@/components/auth-provider";
 import { ApiError, marketplaceApi, type AddressItem, type CartLine } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 const ADDRESS_TYPES = new Set(["SHIP_PHYSICAL", "DISPATCH_SERVICE", "BOOK_APPOINTMENT"]);
 
@@ -49,6 +50,7 @@ export default function CheckoutPage() {
 
   const needsAddress = lines.some((line) => ADDRESS_TYPES.has(line.fulfilment_type));
   const total = lines.reduce((sum, line) => sum + line.unit_price * line.quantity, 0);
+  const totalCurrency = lines[0]?.currency || "INR";
 
   function startEdit(address: AddressItem) {
     setEditor(address.address_id);
@@ -171,11 +173,11 @@ export default function CheckoutPage() {
               <span>
                 {line.product_name} × {line.quantity}
               </span>
-              <span>${(line.unit_price * line.quantity).toFixed(2)}</span>
+              <span>{formatMoney(line.unit_price * line.quantity, line.currency)}</span>
             </li>
           ))}
         </ul>
-        <p className="mt-4 text-sm font-semibold">Total ${total.toFixed(2)}</p>
+        <p className="mt-4 text-sm font-semibold">Total {formatMoney(total, totalCurrency)}</p>
         <button
           type="button"
           disabled={busy || lines.length === 0 || (needsAddress && !addressId)}

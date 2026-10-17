@@ -224,10 +224,10 @@ function DashboardBody() {
           </Link>
           {profile?.is_platform_operator && (
             <Link
-              href="/app/governance"
+              href="/app/platform-admin/plugins"
               className="rounded-full border border-border bg-surface px-5 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-[var(--hero-tint)]"
             >
-              Governance
+              Platform Admin
             </Link>
           )}
           <Link

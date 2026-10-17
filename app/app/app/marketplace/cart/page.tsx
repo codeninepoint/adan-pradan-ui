@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { marketplaceApi, type CartLine } from "@/lib/api";
+import { formatMoney } from "@/lib/money";
 
 export default function CartPage() {
   const { tenantId, ensureAccessToken } = useAuth();
@@ -20,6 +21,7 @@ export default function CartPage() {
   }, [load]);
 
   const total = lines.reduce((sum, line) => sum + line.unit_price * line.quantity, 0);
+  const totalCurrency = lines[0]?.currency || "INR";
 
   return (
     <div className="max-w-3xl">
@@ -34,7 +36,7 @@ export default function CartPage() {
                 <div>
                   <p className="font-semibold">{line.product_name}</p>
                   <p className="text-muted">
-                    {line.plan_name} · ${line.unit_price} / {line.billing_period}
+                    {line.plan_name} · {formatMoney(line.unit_price, line.currency)} / {line.billing_period}
                   </p>
                 </div>
                 <div className="flex items-center gap-3">
@@ -65,7 +67,7 @@ export default function CartPage() {
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-sm font-semibold">Total ${total.toFixed(2)}</p>
+          <p className="mt-4 text-sm font-semibold">Total {formatMoney(total, totalCurrency)}</p>
           <Link href="/app/marketplace/checkout" className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-sm font-bold text-primary-foreground">
             Proceed to checkout
           </Link>
