@@ -642,6 +642,8 @@ export type CartLine = {
   currency: string;
   fulfilment_type: string;
   billing_period: string;
+  vendor_id: string;
+  vendor_name: string;
 };
 
 export type CartResponse = { cart_id: string | null; status: string; lines: CartLine[] };
@@ -657,6 +659,12 @@ export type AddressItem = {
   phone: string;
 };
 
+export type OrderVendorSummary = {
+  vendor_id: string;
+  vendor_name: string;
+  status: string;
+};
+
 export type OrderSummary = {
   order_id: string;
   status: string;
@@ -664,6 +672,39 @@ export type OrderSummary = {
   placed_at: string;
   line_count: number;
   total: number;
+  vendors: OrderVendorSummary[];
+};
+
+export type OrderLineDetail = {
+  line_id: string;
+  offering_id?: string;
+  product_name: string;
+  plan_name: string;
+  quantity: number;
+  fulfilment_type: string;
+  billing_period?: string;
+  unit_price: number;
+  currency: string;
+  status: string;
+  vendor_id: string;
+  vendor_name: string;
+};
+
+export type OrderVendorSlice = {
+  vendor_id: string;
+  vendor_name: string;
+  status: string;
+  courier: string;
+  tracking_number: string;
+  refund_status: string;
+  refund_amount: number | null;
+  lines: OrderLineDetail[];
+};
+
+export type OrderTimelineStep = {
+  label: string;
+  at: string;
+  done: boolean;
 };
 
 export type OrderDetail = {
@@ -672,16 +713,10 @@ export type OrderDetail = {
   payment_method: string;
   address_id: string | null;
   placed_at: string;
-  lines: {
-    line_id: string;
-    product_name: string;
-    plan_name: string;
-    quantity: number;
-    fulfilment_type: string;
-    unit_price: number;
-    currency: string;
-    status: string;
-  }[];
+  lines: OrderLineDetail[];
+  vendors: OrderVendorSlice[];
+  address: AddressItem | null;
+  timeline: OrderTimelineStep[];
 };
 
 export type VendorProductItem = {
@@ -800,6 +835,14 @@ export type CatalogItem = {
   billing_period: string;
   fulfilment_type: string;
   category: string;
+  avg_rating?: number;
+  review_count?: number;
+  in_stock?: boolean;
+};
+
+export type CatalogVendorFacet = {
+  vendor_id: string;
+  name: string;
 };
 
 export type VendorPluginItem = {
@@ -1157,6 +1200,8 @@ export const marketplaceApi = {
         phone: string;
         courier: string;
         tracking_number: string;
+        refund_status: string;
+        refund_amount: number | null;
       }[];
     }>(`/api/v1/vendors/${vendorId}/orders${query}`, { ensureAccessToken, method: "GET" });
   },
@@ -1171,6 +1216,22 @@ export const marketplaceApi = {
       `/api/v1/vendors/${vendorId}/orders/${orderId}`,
       { ensureAccessToken, method: "PATCH", body },
     ),
+
+  issueVendorRejectRefund: (
+    vendorId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{
+      order_id: string;
+      vendor_id: string;
+      status: string;
+      refund_status: string;
+      refund_amount: number | null;
+    }>(`/api/v1/vendors/${vendorId}/orders/${orderId}/refund-slice`, {
+      ensureAccessToken,
+      method: "POST",
+    }),
 
   vendorInstallations: (vendorId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
@@ -1386,6 +1447,10 @@ export const marketplaceApi = {
     verified_only?: boolean;
     price_min?: string;
     price_max?: string;
+    vendor_ids?: string;
+    pincode?: string;
+    in_stock?: boolean;
+    fulfilment?: string;
   }) => {
     const search = new URLSearchParams();
     if (params?.q) search.set("q", params.q);
@@ -1394,10 +1459,16 @@ export const marketplaceApi = {
     if (params?.verified_only) search.set("verified_only", "true");
     if (params?.price_min) search.set("price_min", params.price_min);
     if (params?.price_max) search.set("price_max", params.price_max);
+    if (params?.vendor_ids) search.set("vendor_ids", params.vendor_ids);
+    if (params?.pincode) search.set("pincode", params.pincode);
+    if (params?.in_stock) search.set("in_stock", "true");
+    if (params?.fulfilment) search.set("fulfilment", params.fulfilment);
     const query = search.toString();
-    return api<{ results: CatalogItem[]; total: number }>(
-      `/api/v1/marketplace/catalog${query ? `?${query}` : ""}`,
-    );
+    return api<{
+      results: CatalogItem[];
+      total: number;
+      facets?: { vendors: CatalogVendorFacet[] };
+    }>(`/api/v1/marketplace/catalog${query ? `?${query}` : ""}`);
   },
 
   product: (productId: string) =>
@@ -1408,6 +1479,7 @@ export const marketplaceApi = {
       fulfilment_type: string;
       vendor: string;
       category: string;
+      content?: Record<string, unknown>;
       capabilities: string[];
       offerings: {
         offering_id: string;
@@ -1418,6 +1490,18 @@ export const marketplaceApi = {
         billing_period: string;
       }[];
     }>(`/api/v1/marketplace/products/${productId}`),
+
+  productReviews: (productId: string) =>
+    api<{
+      reviews: {
+        rating: number;
+        comment: string;
+        customer_name: string;
+        created_at: string;
+      }[];
+      avg_rating: number;
+      review_count: number;
+    }>(`/api/v1/marketplace/products/${productId}/reviews`),
 
   review: (versionId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{
@@ -1639,6 +1723,17 @@ export const marketplaceApi = {
 
   order: (orderId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<OrderDetail>(`/api/v1/orders/${orderId}`, { ensureAccessToken, method: "GET" }),
+
+  cancelOrder: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<OrderDetail>(`/api/v1/tenants/${tenantId}/orders/${orderId}/cancel`, {
+      ensureAccessToken,
+      tenantId,
+      method: "POST",
+    }),
 
   requestReturn: (
     orderId: string,

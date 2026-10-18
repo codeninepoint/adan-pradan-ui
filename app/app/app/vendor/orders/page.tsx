@@ -118,6 +118,17 @@ export default function VendorOrdersPage() {
             const refreshed = groupVendorOrders(data.lines).find((order) => order.order_id === open.order_id);
             setOpen(refreshed ?? null);
           }}
+          onIssueRefund={async () => {
+            await marketplaceApi.issueVendorRejectRefund(
+              vendor.vendor_id,
+              open.order_id,
+              ensureAccessToken,
+            );
+            const data = await marketplaceApi.vendorOrders(vendor.vendor_id, ensureAccessToken);
+            setLines(data.lines);
+            const refreshed = groupVendorOrders(data.lines).find((order) => order.order_id === open.order_id);
+            setOpen(refreshed ?? null);
+          }}
         />
       )}
     </div>
@@ -179,16 +190,20 @@ function OrderDialog({
   order,
   onClose,
   onAdvance,
+  onIssueRefund,
 }: {
   order: VendorOrder;
   onClose: () => void;
   onAdvance: (status: string, shipment?: { courier: string; tracking: string }) => Promise<void>;
+  onIssueRefund: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
   const [shipping, setShipping] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const terminal = order.status === "cancelled" || order.status === "returned";
   const stepIndex = ORDER_STEPPER.indexOf(order.status);
+  const refundPending = order.refund_status === "pending";
+  const refunded = order.refund_status === "refunded";
 
   async function advance(status: string, shipment?: { courier: string; tracking: string }) {
     setBusy(true);
@@ -270,6 +285,27 @@ function OrderDialog({
           {order.courier ? ` via ${order.courier}` : ""}
         </p>
       )}
+      {order.status === "delayed" && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          Marked delayed — resume packing when ready.
+        </p>
+      )}
+      {refundPending && (
+        <p className="mt-4 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          Reject refund pending
+          {order.refund_amount != null
+            ? ` · ${formatMoney(order.refund_amount, order.currency || "INR")}`
+            : ""}
+        </p>
+      )}
+      {refunded && (
+        <p className="mt-4 rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+          Slice refunded
+          {order.refund_amount != null
+            ? ` · ${formatMoney(order.refund_amount, order.currency || "INR")}`
+            : ""}
+        </p>
+      )}
       {formError && <p className="mt-3 text-sm text-error">{formError}</p>}
       {shipping ? (
         <form onSubmit={confirmShip} className="mt-4 space-y-3">
@@ -308,8 +344,23 @@ function OrderDialog({
             </button>
           )}
           {order.status === "processing" && (
+            <>
+              <button
+                type="button"
+                disabled={busy}
+                className={ghostClass}
+                onClick={() => void advance("delayed")}
+              >
+                Mark delayed
+              </button>
+              <button type="button" disabled={busy} className={buttonClass} onClick={() => void advance("ready_to_ship")}>
+                Mark packed
+              </button>
+            </>
+          )}
+          {order.status === "delayed" && (
             <button type="button" disabled={busy} className={buttonClass} onClick={() => void advance("ready_to_ship")}>
-              Mark packed
+              Resume · mark packed
             </button>
           )}
           {order.status === "ready_to_ship" && (
@@ -320,6 +371,24 @@ function OrderDialog({
           {order.status === "shipped" && (
             <button type="button" disabled={busy} className={buttonClass} onClick={() => void advance("delivered")}>
               Mark delivered
+            </button>
+          )}
+          {order.status === "cancelled" && refundPending && (
+            <button
+              type="button"
+              disabled={busy}
+              className={buttonClass}
+              onClick={() => {
+                setBusy(true);
+                setFormError(null);
+                void onIssueRefund()
+                  .catch((err: unknown) => {
+                    setFormError(err instanceof ApiError ? err.detail : "Could not issue refund.");
+                  })
+                  .finally(() => setBusy(false));
+              }}
+            >
+              Issue refund
             </button>
           )}
         </div>

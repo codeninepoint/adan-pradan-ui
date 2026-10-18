@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { useAuth } from "@/components/auth-provider";
+import { CartDrawer } from "@/components/marketplace/cart-drawer";
+import { CheckoutModal } from "@/components/marketplace/checkout-modal";
 import { marketplaceApi } from "@/lib/api";
 
 const NAV = [
@@ -41,6 +43,8 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
   const [count, setCount] = useState(0);
   const [query, setQuery] = useState("");
   const [deliverTo, setDeliverTo] = useState<string | null>(null);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   useEffect(() => {
     if (!tenantId) return;
@@ -71,14 +75,20 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
         });
     }
 
+    function openCart() {
+      setCartOpen(true);
+    }
+
     loadCart();
     loadAddress();
     window.addEventListener("marketplace-cart", loadCart);
     window.addEventListener("marketplace-address", loadAddress);
+    window.addEventListener("marketplace-open-cart", openCart);
     return () => {
       cancelled = true;
       window.removeEventListener("marketplace-cart", loadCart);
       window.removeEventListener("marketplace-address", loadAddress);
+      window.removeEventListener("marketplace-open-cart", openCart);
     };
   }, [tenantId, ensureAccessToken, pathname]);
 
@@ -99,6 +109,28 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
               </p>
               {section.items.map((item) => {
                 const active = pathname === item.href;
+                const isCart = item.href.endsWith("/cart");
+                if (isCart) {
+                  return (
+                    <button
+                      key={item.href}
+                      type="button"
+                      onClick={() => setCartOpen(true)}
+                      className={`flex w-full items-center justify-between whitespace-nowrap rounded-lg border-l-2 px-3 py-2 text-left text-sm ${
+                        cartOpen
+                          ? "border-primary bg-[var(--hero-tint)] font-bold text-foreground"
+                          : "border-transparent text-muted hover:bg-[var(--hero-tint)] hover:text-foreground"
+                      }`}
+                    >
+                      <span>{item.label}</span>
+                      {count > 0 && (
+                        <span className="ml-2 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+                          {count}
+                        </span>
+                      )}
+                    </button>
+                  );
+                }
                 return (
                   <Link
                     key={item.href}
@@ -110,11 +142,6 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
                     }`}
                   >
                     <span>{item.label}</span>
-                    {item.href.endsWith("/cart") && count > 0 && (
-                      <span className="ml-2 rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                        {count}
-                      </span>
-                    )}
                   </Link>
                 );
               })}
@@ -136,7 +163,7 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search products, courses, services…"
+              placeholder="Search products, vendors…"
               className="w-full max-w-xl rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
           </form>
@@ -144,8 +171,9 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
             <span className="block text-[10px] font-bold uppercase tracking-wide text-muted">Deliver to</span>
             <span className="text-sm font-semibold text-foreground">{deliverTo ?? "Add address"}</span>
           </Link>
-          <Link
-            href="/app/marketplace/cart"
+          <button
+            type="button"
+            onClick={() => setCartOpen(true)}
             className="relative grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-border text-foreground"
             aria-label={count > 0 ? `Cart, ${count} items` : "Cart"}
           >
@@ -160,10 +188,27 @@ export function StorefrontShell({ children }: { children: ReactNode }) {
                 {count}
               </span>
             )}
-          </Link>
+          </button>
         </div>
         <div className="px-5 py-6 md:px-7">{children}</div>
       </div>
+
+      <CartDrawer
+        open={cartOpen}
+        onClose={() => setCartOpen(false)}
+        onCheckout={() => {
+          setCartOpen(false);
+          setCheckoutOpen(true);
+        }}
+      />
+      <CheckoutModal
+        open={checkoutOpen}
+        onClose={() => setCheckoutOpen(false)}
+        onPlaced={(orderId) => {
+          setCheckoutOpen(false);
+          router.push(`/app/marketplace/orders/${orderId}`);
+        }}
+      />
     </div>
   );
 }

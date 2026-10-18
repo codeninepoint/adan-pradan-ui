@@ -16,6 +16,8 @@ export type VendorOrderLine = {
   courier: string;
   tracking_number: string;
   fulfilment_type?: string;
+  refund_status?: string;
+  refund_amount?: number | null;
 };
 
 export type VendorOrder = VendorOrderLine & { items: VendorOrderLine[]; amount: number };

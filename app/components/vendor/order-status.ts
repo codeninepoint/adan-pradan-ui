@@ -2,6 +2,7 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   placed: "New",
   confirmed: "Confirmed",
   processing: "Processing",
+  delayed: "Delayed",
   ready_to_ship: "Ready to Ship",
   shipped: "Shipped",
   delivered: "Delivered",
@@ -9,7 +10,14 @@ export const ORDER_STATUS_LABELS: Record<string, string> = {
   returned: "Returned",
 };
 
-export const ORDER_STEPPER = ["placed", "confirmed", "processing", "ready_to_ship", "shipped", "delivered"];
+export const ORDER_STEPPER = [
+  "placed",
+  "confirmed",
+  "processing",
+  "ready_to_ship",
+  "shipped",
+  "delivered",
+];
 
 /** Display labels for the Fulfilment Pipeline Kanban / table (not the Orders stepper). */
 export const PIPELINE_COLUMN_LABELS = {
