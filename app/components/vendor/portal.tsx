@@ -82,15 +82,22 @@ export function VendorPortalProvider({ children }: { children: ReactNode }) {
 
 type NavItem = { href: string; label: string; badge?: string };
 
+const GROWTH_PLUGIN_HREFS: Record<string, string> = {
+  "sales-pipeline": "/app/vendor/sales-pipeline",
+  "digital-marketing": "/app/vendor/digital-marketing",
+  publicity: "/app/vendor/publicity",
+};
+
 function buildNav(
   pendingPluginReviews?: number,
   pendingReturns?: number,
+  activeGrowthPlugins: { key: string; name: string }[] = [],
 ): { label: string; items: NavItem[] }[] {
   const myPluginsBadge =
     pendingPluginReviews && pendingPluginReviews > 0 ? String(pendingPluginReviews) : undefined;
   const returnsBadge =
     pendingReturns && pendingReturns > 0 ? String(pendingReturns) : undefined;
-  return [
+  const sections: { label: string; items: NavItem[] }[] = [
   {
     label: "Main",
     items: [
@@ -109,10 +116,24 @@ function buildNav(
   {
     label: "Plugins",
     items: [
+      { href: "/app/vendor/plugin-store", label: "Plugin Store", badge: "3" },
       { href: "/app/vendor/platform-plugins", label: "Platform Plugins" },
       { href: "/app/vendor/my-plugins", label: "My Plugins", badge: myPluginsBadge },
+      { href: "/app/vendor/plugin-settings", label: "Plugin Settings" },
     ],
   },
+  ...(activeGrowthPlugins.length > 0
+    ? [
+        {
+          label: "Active Plugins",
+          items: activeGrowthPlugins.map((plugin) => ({
+            href: GROWTH_PLUGIN_HREFS[plugin.key] ?? "/app/vendor/plugin-settings",
+            label: plugin.name,
+            badge: "●",
+          })),
+        },
+      ]
+    : []),
   {
     label: "Orders & fulfilment",
     items: [
@@ -142,7 +163,8 @@ function buildNav(
       { href: "/app/vendor/settings", label: "Vendor Settings" },
     ],
   },
-];
+  ];
+  return sections;
 }
 
 function VendorShell({ vendor, children }: { vendor: VendorProfile; children: ReactNode }) {
@@ -151,6 +173,7 @@ function VendorShell({ vendor, children }: { vendor: VendorProfile; children: Re
   const verified = vendor.status === "verified";
   const [pendingPluginReviews, setPendingPluginReviews] = useState<number | undefined>(undefined);
   const [pendingReturns, setPendingReturns] = useState<number | undefined>(undefined);
+  const [activeGrowthPlugins, setActiveGrowthPlugins] = useState<{ key: string; name: string }[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -161,6 +184,20 @@ function VendorShell({ vendor, children }: { vendor: VendorProfile; children: Re
       })
       .catch(() => {
         if (!cancelled) setPendingPluginReviews(undefined);
+      });
+    void marketplaceApi
+      .vendorGrowthPlugins(vendor.vendor_id, ensureAccessToken)
+      .then((data) => {
+        if (!cancelled) {
+          setActiveGrowthPlugins(
+            data.items
+              .filter((item) => item.installation_status === "active")
+              .map((item) => ({ key: item.key, name: item.name })),
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setActiveGrowthPlugins([]);
       });
     void marketplaceApi
       .vendorReturns(vendor.vendor_id, ensureAccessToken)
@@ -178,8 +215,8 @@ function VendorShell({ vendor, children }: { vendor: VendorProfile; children: Re
   }, [vendor.vendor_id, ensureAccessToken]);
 
   const nav = useMemo(
-    () => buildNav(pendingPluginReviews, pendingReturns),
-    [pendingPluginReviews, pendingReturns],
+    () => buildNav(pendingPluginReviews, pendingReturns, activeGrowthPlugins),
+    [pendingPluginReviews, pendingReturns, activeGrowthPlugins],
   );
 
   return (

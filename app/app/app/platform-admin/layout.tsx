@@ -27,6 +27,7 @@ const NAV = [
     items: [
       { href: "/app/platform-admin/plugins", label: "Plugin Review" },
       { href: "/app/platform-admin/standard-plugins", label: "Standard Plugins" },
+      { href: "/app/platform-admin/growth-plugins", label: "Growth Plugins" },
       { href: "/app/platform-admin/approve-versions", label: "Approve Versions" },
     ],
   },

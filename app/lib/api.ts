@@ -1290,6 +1290,173 @@ export const marketplaceApi = {
       { ensureAccessToken, method: "POST" },
     ),
 
+  vendorGrowthPlugins: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ items: VendorGrowthPluginItem[] }>(`/api/v1/vendors/${vendorId}/growth-plugins`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  importGrowthPlugin: (
+    vendorId: string,
+    pluginKey: string,
+    body: {
+      consents: Record<string, boolean>;
+      connection: Record<string, string | boolean>;
+      modules?: { key: string; label: string; enabled: boolean }[];
+    },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorGrowthPluginItem>(`/api/v1/vendors/${vendorId}/growth-plugins/${pluginKey}/import`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updateVendorGrowthPlugin: (
+    vendorId: string,
+    pluginKey: string,
+    body: {
+      modules?: { key: string; label: string; enabled: boolean }[];
+      status?: string;
+      connection?: Record<string, string | boolean>;
+    },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorGrowthPluginItem>(`/api/v1/vendors/${vendorId}/growth-plugins/${pluginKey}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  salesPipelineBoard: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<SalesBoard>(`/api/v1/vendors/${vendorId}/growth-plugins/sales-pipeline/board`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  createSalesDeal: (
+    vendorId: string,
+    body: { company: string; contact_name?: string; stage?: string; value_inr?: number },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<SalesDeal>(`/api/v1/vendors/${vendorId}/growth-plugins/sales-pipeline/deals`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updateSalesDeal: (
+    vendorId: string,
+    dealId: string,
+    body: { stage?: string; company?: string; contact_name?: string; value_inr?: number },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<SalesDeal>(`/api/v1/vendors/${vendorId}/growth-plugins/sales-pipeline/deals/${dealId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  createSalesFollowUp: (
+    vendorId: string,
+    body: { title: string; detail?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<SalesFollowUp>(`/api/v1/vendors/${vendorId}/growth-plugins/sales-pipeline/followups`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  completeSalesFollowUp: (
+    vendorId: string,
+    followupId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<SalesFollowUp>(
+      `/api/v1/vendors/${vendorId}/growth-plugins/sales-pipeline/followups/${followupId}/complete`,
+      { ensureAccessToken, method: "POST" },
+    ),
+
+  digitalMarketingBoard: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<MarketingBoard>(`/api/v1/vendors/${vendorId}/growth-plugins/digital-marketing/board`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  createMarketingCampaign: (
+    vendorId: string,
+    body: { name: string; channel?: string; spend_inr?: number; status?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<MarketingCampaign>(`/api/v1/vendors/${vendorId}/growth-plugins/digital-marketing/campaigns`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updateMarketingCampaign: (
+    vendorId: string,
+    campaignId: string,
+    body: { status?: string; name?: string; channel?: string; spend_inr?: number },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<MarketingCampaign>(
+      `/api/v1/vendors/${vendorId}/growth-plugins/digital-marketing/campaigns/${campaignId}`,
+      { ensureAccessToken, method: "PATCH", body },
+    ),
+
+  publicityBoard: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<PublicityBoard>(`/api/v1/vendors/${vendorId}/growth-plugins/publicity/board`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  createPressRelease: (
+    vendorId: string,
+    body: { headline?: string; template?: string; distribution?: string; body?: string; status?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<PressRelease>(`/api/v1/vendors/${vendorId}/growth-plugins/publicity/releases`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  updatePressRelease: (
+    vendorId: string,
+    releaseId: string,
+    body: { headline?: string; template?: string; distribution?: string; body?: string; status?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<PressRelease>(`/api/v1/vendors/${vendorId}/growth-plugins/publicity/releases/${releaseId}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
+    }),
+
+  publicityAiDraft: (
+    vendorId: string,
+    body: { template: string; topic?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ headline: string; body: string; template: string }>(
+      `/api/v1/vendors/${vendorId}/growth-plugins/publicity/ai-draft`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
   submitPluginBundle: (
     vendorId: string,
     body: SubmitPluginBundleBody,
@@ -1791,6 +1958,145 @@ export const marketplaceApi = {
     }),
 };
 
+export type GrowthPluginModule = {
+  key: string;
+  label: string;
+  description: string;
+  enabled: boolean;
+  badge: string | null;
+};
+
+export type GrowthPluginItem = {
+  key: string;
+  name: string;
+  description: string;
+  group_label: string;
+  lifecycle: string;
+  enabled: boolean;
+  modules: GrowthPluginModule[];
+  config: Record<string, string | number | boolean>;
+  stats: {
+    vendors_using?: number;
+    total_vendors?: number;
+    items?: { key: string; label: string; value: string }[];
+  };
+  guarantees: string[];
+  updated_at: string | null;
+};
+
+export type VendorGrowthModule = {
+  key: string;
+  label: string;
+  description: string;
+  badge: string | null;
+  platform_enabled: boolean;
+  enabled: boolean;
+};
+
+export type VendorGrowthPluginItem = {
+  key: string;
+  name: string;
+  description: string;
+  group_label: string;
+  lifecycle: string;
+  platform_enabled: boolean;
+  rating: number;
+  price_label: string;
+  vendors_using: number;
+  total_vendors: number;
+  guarantees: string[];
+  modules: GrowthPluginModule[];
+  installation_status: "active" | "inactive" | "not_imported";
+  vendor_modules: VendorGrowthModule[];
+  connection: Record<string, string | boolean>;
+  imported_at: string | null;
+  updated_at: string | null;
+};
+
+export type SalesDeal = {
+  deal_id: string;
+  company: string;
+  contact_name: string;
+  stage: string;
+  value_inr: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SalesFollowUp = {
+  followup_id: string;
+  deal_id: string | null;
+  title: string;
+  detail: string;
+  status: string;
+};
+
+export type SalesBoard = {
+  stages: { key: string; label: string }[];
+  deals: SalesDeal[];
+  followups: SalesFollowUp[];
+  stats: {
+    total_pipeline_inr: number;
+    deals_open: number;
+    closing_this_month_inr: number;
+    avg_cycle_days: number;
+  };
+  active_modules: number;
+  updated_at: string | null;
+};
+
+export type MarketingCampaign = {
+  campaign_id: string;
+  name: string;
+  channel: string;
+  spend_inr: number;
+  ctr_percent: number;
+  conversions: number;
+  status: "live" | "paused" | "draft";
+  created_at: string;
+  updated_at: string;
+};
+
+export type MarketingBoard = {
+  campaigns: MarketingCampaign[];
+  stats: {
+    total_ad_spend_inr: number;
+    budget_inr: number;
+    avg_ctr_percent: number;
+    conversions: number;
+    cost_per_conversion_inr: number;
+    live_campaigns: number;
+  };
+  race_funnel: { stage: string; value: number }[];
+  active_modules: number;
+  daily_spend_cap_inr: number;
+  updated_at: string | null;
+};
+
+export type PressRelease = {
+  release_id: string;
+  headline: string;
+  template: string;
+  template_label: string;
+  distribution: string;
+  distribution_label: string;
+  body: string;
+  status: "draft" | "sent";
+  created_at: string;
+  updated_at: string;
+};
+
+export type PublicityBoard = {
+  releases: PressRelease[];
+  stats: { releases_sent: number; drafts: number; total_releases: number };
+  templates: { key: string; label: string }[];
+  distributions: { key: string; label: string }[];
+  active_modules: number;
+  ai_tokens_per_month: number;
+  media_kit_format: string;
+  updated_at: string | null;
+};
+
 export type PlatformAdminEnsure = (force?: boolean) => Promise<string | null>;
 
 export const platformAdminApi = {
@@ -1871,6 +2177,32 @@ export const platformAdminApi = {
     apiAuthed<void>(`/api/v1/admin/standard-plugins/${pluginId}`, {
       ensureAccessToken,
       method: "DELETE",
+    }),
+
+  growthPlugins: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: GrowthPluginItem[];
+      summary: {
+        total_plugins: number;
+        total_modules: number;
+        enabled_plugins: number;
+        vendors_using: number;
+      };
+    }>("/api/v1/admin/growth-plugins", { ensureAccessToken, method: "GET" }),
+
+  updateGrowthPlugin: (
+    pluginKey: string,
+    body: {
+      enabled?: boolean;
+      modules?: GrowthPluginModule[];
+      config?: Record<string, string | number | boolean>;
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<GrowthPluginItem>(`/api/v1/admin/growth-plugins/${pluginKey}`, {
+      ensureAccessToken,
+      method: "PATCH",
+      body,
     }),
 
   users: (
