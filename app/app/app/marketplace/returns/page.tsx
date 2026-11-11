@@ -19,9 +19,21 @@ export default function ReturnsPage() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Returns & refunds</h1>
-      <p className="mt-1 text-sm text-muted">A return records the request. Refunds are not processed here.</p>
+      <p className="mt-1 text-sm text-muted">
+        Food-order returns with the 30-minute window live on{" "}
+        <Link href="/app/marketplace/orders" className="text-primary">
+          Orders
+        </Link>
+        . This list shows catalog return requests.
+      </p>
       {items.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">No returns yet. Open an order to request one.</p>
+        <p className="mt-4 text-sm text-muted">
+          No catalog returns yet. Raise a food-order return from{" "}
+          <Link href="/app/marketplace/orders" className="text-primary">
+            Orders
+          </Link>
+          .
+        </p>
       ) : (
         <ul className="mt-4 space-y-3 text-sm">
           {items.map((item) => (
@@ -29,8 +41,8 @@ export default function ReturnsPage() {
               <p className="font-semibold">{item.product_name}</p>
               <p className="text-muted">
                 {item.status} · {item.reason} ·{" "}
-                <Link href={`/app/marketplace/orders/${item.order_id}`} className="text-primary">
-                  order
+                <Link href="/app/marketplace/orders" className="text-primary">
+                  orders
                 </Link>
               </p>
             </li>

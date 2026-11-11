@@ -7,6 +7,9 @@ import { ApiError, marketplaceApi, type OrderDetail } from "@/lib/api";
 import { formatMoney } from "@/lib/money";
 
 const STATUS_BADGE: Record<string, string> = {
+  awaiting_payment: "bg-warning/15 text-warning",
+  payment_failed: "bg-error/15 text-error",
+  payment_dropped: "bg-error/15 text-error",
   placed: "bg-primary/15 text-primary",
   confirmed: "bg-primary/15 text-primary",
   processing: "bg-warning/15 text-warning",

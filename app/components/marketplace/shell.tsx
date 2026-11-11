@@ -22,7 +22,7 @@ const NAV = [
     label: "My Marketplace",
     items: [
       { href: "/app/marketplace/installs", label: "My Installs" },
-      { href: "/app/marketplace/orders", label: "Orders & Tracking" },
+      { href: "/app/marketplace/orders", label: "Orders" },
       { href: "/app/marketplace/returns", label: "Returns & Refunds" },
       { href: "/app/marketplace/billing", label: "Subscriptions & Billing" },
     ],

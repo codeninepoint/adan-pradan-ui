@@ -9,6 +9,7 @@ import {
   groupLinesByVendor,
 } from "@/components/marketplace/commerce-money";
 import { ApiError, marketplaceApi, type AddressItem, type CartLine } from "@/lib/api";
+import { openCashfreeCheckout } from "@/lib/cashfree-checkout";
 import { formatMoney } from "@/lib/money";
 
 const ADDRESS_TYPES = new Set(["SHIP_PHYSICAL", "DISPATCH_SERVICE", "BOOK_APPOINTMENT"]);
@@ -54,16 +55,28 @@ export function CheckoutModal({
 
   useEffect(() => {
     if (!open || !tenantId) return;
+    setBusy(false);
+    setError(null);
     void marketplaceApi.cart(tenantId, ensureAccessToken).then((cart) => setLines(cart.lines));
     void loadAddresses().then((rows) => {
-      if (rows[0]) setAddressId((current) => current || rows[0].address_id);
+      if (rows[0]) {
+        setAddressId((current) => current || rows[0].address_id);
+        setEditor(null);
+      } else {
+        setAddressId("");
+        setEditor("new");
+        setDraft(emptyAddress);
+      }
     });
   }, [open, tenantId, ensureAccessToken, loadAddresses]);
 
   const needsAddress = lines.some((line) => ADDRESS_TYPES.has(line.fulfilment_type));
+  // Cashfree requires a customer phone; we take it from the delivery address.
+  const requiresAddress = needsAddress || lines.length > 0;
   const groups = groupLinesByVendor(lines);
   const totals = cartTotalWithGst(lines);
   const vendorCount = groups.length;
+  const canPay = !busy && lines.length > 0 && Boolean(addressId);
 
   async function saveAddress() {
     if (!tenantId || !editor) return;
@@ -88,21 +101,33 @@ export function CheckoutModal({
     setBusy(true);
     setError(null);
     try {
-      const order = await marketplaceApi.placeOrder(
+      const session = await marketplaceApi.createCheckoutSession(
         tenantId,
         {
           payment_method: payment,
-          address_id: needsAddress ? addressId : addressId || undefined,
+          address_id: addressId || undefined,
         },
         ensureAccessToken,
       );
-      window.dispatchEvent(new Event("marketplace-cart"));
-      onClose();
-      if (onPlaced) {
-        onPlaced(order.order_id);
-      } else {
-        router.push(`/app/marketplace/orders/${order.order_id}`);
+
+      if (session.provider === "stub" || !session.payment_session_id.startsWith("session_")) {
+        await marketplaceApi.simulateOrderPayment(
+          tenantId,
+          session.order_id,
+          ensureAccessToken,
+        );
+        window.dispatchEvent(new Event("marketplace-cart"));
+        onClose();
+        if (onPlaced) {
+          onPlaced(session.order_id);
+        } else {
+          router.push(`/app/marketplace/orders?paid=${session.order_id}`);
+        }
+        return;
       }
+
+      await openCashfreeCheckout(session.payment_session_id, session.cf_env);
+      // Cashfree redirects via return_url; keep modal busy until navigation.
     } catch (err) {
       setError(err instanceof ApiError ? err.detail : "Checkout failed.");
       setBusy(false);
@@ -157,7 +182,12 @@ export function CheckoutModal({
                   + Add New Address
                 </button>
               </div>
-              {!needsAddress && (
+              {requiresAddress && addresses.length === 0 && !editor && (
+                <p className="mt-2 text-xs text-warning">
+                  Add a delivery address with a valid 10-digit phone to enable Pay.
+                </p>
+              )}
+              {!requiresAddress && (
                 <p className="mt-2 text-xs text-muted">Address optional for this cart.</p>
               )}
               <div className="mt-3 space-y-2">
@@ -274,16 +304,22 @@ export function CheckoutModal({
               </dl>
               <p className="mt-3 rounded-lg bg-[var(--hero-tint)] px-3 py-2 text-xs text-muted">
                 {vendorCount} vendor suborder{vendorCount === 1 ? "" : "s"} will be created.
-                Payment is recorded on the order — nothing is charged.
+                Pay securely via Cashfree (UPI / card / netbanking). Orders confirm after payment
+                succeeds.
               </p>
+              {!canPay && !busy && lines.length > 0 && !addressId && (
+                <p className="mt-3 text-xs font-semibold text-warning">
+                  Select or add a delivery address (with phone) to enable Pay.
+                </p>
+              )}
               <button
                 type="button"
-                disabled={busy || lines.length === 0 || (needsAddress && !addressId)}
+                disabled={!canPay}
                 onClick={() => void onSubmit()}
                 className="mt-4 w-full rounded-lg bg-primary px-4 py-2.5 text-sm font-bold text-primary-foreground disabled:opacity-50"
               >
                 {busy
-                  ? "Placing…"
+                  ? "Starting payment…"
                   : `Pay ${formatMoney(totals.total, totals.currency)} Securely`}
               </button>
             </section>

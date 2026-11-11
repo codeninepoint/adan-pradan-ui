@@ -10,8 +10,8 @@ import { platformAdminApi } from "@/lib/api";
 const ROLE_NAV: Record<string, string[]> = {
   super_admin: ["*"],
   platform_admin: ["*"],
-  finance_manager: ["Analytics & Ops", "System"],
-  content_moderator: ["Marketplace", "Governance"],
+  finance_manager: ["Settlement", "Analytics & Ops", "System"],
+  content_moderator: ["Marketplace", "Governance", "Communications"],
   kyc_reviewer: ["Marketplace"],
   support_agent: ["Analytics & Ops", "Users & Access"],
 };
@@ -37,6 +37,27 @@ const NAV = [
       { href: "/app/platform-admin/vendors", label: "Vendors" },
       { href: "/app/platform-admin/tenants", label: "Tenants" },
       { href: "/app/platform-admin/products", label: "Products" },
+    ],
+  },
+  {
+    section: "Communications",
+    items: [
+      { href: "/app/platform-admin/communications", label: "Template Library" },
+      { href: "/app/platform-admin/communications/dlt", label: "DLT Approvals" },
+      { href: "/app/platform-admin/communications/usage", label: "Usage Logs" },
+      { href: "/app/platform-admin/communications/consent", label: "Consent & Opt-outs" },
+    ],
+  },
+  {
+    section: "Settlement",
+    items: [
+      { href: "/app/platform-admin/settlement", label: "Dashboard" },
+      { href: "/app/platform-admin/settlement/returns", label: "Return Queue" },
+      { href: "/app/platform-admin/settlement/ledger", label: "Vendor Ledger" },
+      { href: "/app/platform-admin/settlement/tds", label: "TDS / GST" },
+      { href: "/app/platform-admin/settlement/escrow", label: "Escrow Monitor" },
+      { href: "/app/platform-admin/settlement/faults", label: "Platform Faults" },
+      { href: "/app/platform-admin/settlement/fraud", label: "Fraud Signals" },
     ],
   },
   {
@@ -141,7 +162,11 @@ function PlatformAdminShell({ children }: { children: React.ReactNode }) {
                 {group.section}
               </p>
               {group.items.map((item) => {
-                const active = pathname === item.href;
+                const active =
+                  pathname === item.href ||
+                  (item.href !== "/app/platform-admin/communications" &&
+                    item.href !== "/app/platform-admin/settlement" &&
+                    pathname.startsWith(`${item.href}/`));
                 return (
                   <Link
                     key={item.href}

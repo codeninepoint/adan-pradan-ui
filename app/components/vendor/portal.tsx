@@ -119,6 +119,7 @@ function buildNav(
       { href: "/app/vendor/plugin-store", label: "Plugin Store", badge: "3" },
       { href: "/app/vendor/platform-plugins", label: "Platform Plugins" },
       { href: "/app/vendor/my-plugins", label: "My Plugins", badge: myPluginsBadge },
+      { href: "/app/vendor/communications", label: "Communications" },
       { href: "/app/vendor/plugin-settings", label: "Plugin Settings" },
     ],
   },
@@ -152,7 +153,7 @@ function buildNav(
   },
   {
     label: "Payments",
-    items: [{ href: "/app/vendor/payments", label: "Payments & Settlements" }],
+    items: [{ href: "/app/vendor/settlement", label: "Settlement" }],
   },
   {
     label: "Account",

@@ -719,6 +719,106 @@ export type OrderDetail = {
   timeline: OrderTimelineStep[];
 };
 
+export type CheckoutSession = {
+  order_id: string;
+  payment_intent_id: string;
+  payment_session_id: string;
+  merchant_order_id: string;
+  amount: number;
+  currency: string;
+  status: string;
+  cf_env: string;
+  provider: string;
+  cashfree_app_id: string;
+  return_url: string;
+};
+
+export type OrderPaymentStatus = {
+  order_id: string;
+  order_status: string;
+  payment_status: string;
+  payment_session_id: string | null;
+  amount: number;
+  currency: string;
+  provider: string;
+  cf_payment_id: string | null;
+};
+
+export type CustomerHubChatMessage = {
+  kind: string;
+  label?: string;
+  text: string;
+};
+
+export type CustomerHubOrder = {
+  id: string;
+  order_ref: string;
+  vendor_name: string;
+  zone: string;
+  placed_label: string;
+  status: string;
+  total: number;
+  summary: string;
+  is_active: boolean;
+  window_seconds: number | null;
+  window_closes_label: string;
+  timeline: { key: string; title: string; detail: string; state: string }[];
+  bill_lines: { label: string; amount: number; total?: boolean }[];
+  chat: CustomerHubChatMessage[];
+  chat_locked: boolean;
+  return_id: string | null;
+  return_status: string | null;
+  meta: Record<string, unknown>;
+};
+
+export type CustomerHubReturn = {
+  id: string;
+  order_id: string;
+  order_ref: string;
+  category: string;
+  category_label: string;
+  description: string;
+  photo_name: string;
+  amount_at_stake: number;
+  status: string;
+  refund_amount: number | null;
+  refund_method: string | null;
+  refund_reference: string | null;
+  expected_by: string | null;
+  vendor_name: string;
+};
+
+export type CustomerOrderHub = {
+  customer_name: string;
+  active: CustomerHubOrder[];
+  past: CustomerHubOrder[];
+  categories: { key: string; label: string }[];
+};
+
+export type CustomerOrderHubChat = {
+  info: string;
+  threads: {
+    order_id: string;
+    order_ref: string;
+    vendor_name: string;
+    online: boolean;
+    locked: boolean;
+    lock_label: string | null;
+    messages: CustomerHubChatMessage[];
+  }[];
+};
+
+export type CustomerOrderHubPayments = {
+  summary: { orders_paid: number; refunds: number; net: number };
+  items: {
+    order_ref: string;
+    label: string;
+    amount: number;
+    status: string;
+    vendor_name: string;
+  }[];
+};
+
 export type VendorProductItem = {
   product_id: string;
   name: string;
@@ -1457,6 +1557,146 @@ export const marketplaceApi = {
       { ensureAccessToken, method: "POST", body },
     ),
 
+  vendorSettlementEarnings: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementEarnings>(`/api/v1/vendors/${vendorId}/settlement/earnings`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorSettlementReturns: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementReturns>(`/api/v1/vendors/${vendorId}/settlement/returns`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  respondVendorSettlementReturn: (
+    vendorId: string,
+    returnId: string,
+    body: { action: "accept" | "contest" | "timeout"; reason?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ message: string; toast?: string; item: VendorSettlementReturn }>(
+      `/api/v1/vendors/${vendorId}/settlement/returns/${returnId}/respond`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
+  vendorSettlementOrders: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementOrders>(`/api/v1/vendors/${vendorId}/settlement/orders`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorSettlementHistory: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementHistory>(`/api/v1/vendors/${vendorId}/settlement/history`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorSettlementChat: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementChat>(`/api/v1/vendors/${vendorId}/settlement/chat`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorSettlementBank: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementBank>(`/api/v1/vendors/${vendorId}/settlement/bank`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  updateVendorSettlementBank: (
+    vendorId: string,
+    body: { bank_name: string; account_number: string; ifsc: string; branch?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorSettlementBank & { message: string }>(
+      `/api/v1/vendors/${vendorId}/settlement/bank`,
+      { ensureAccessToken, method: "PATCH", body },
+    ),
+
+  vendorCommunicationsHub: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorCommunicationsHub>(`/api/v1/vendors/${vendorId}/communications/hub`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  vendorCommunicationTemplates: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    params?: { channel?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.channel) search.set("channel", params.channel);
+    const query = search.toString();
+    return apiAuthed<{ items: VendorCommunicationTemplate[] }>(
+      `/api/v1/vendors/${vendorId}/communications/templates${query ? `?${query}` : ""}`,
+      { ensureAccessToken, method: "GET" },
+    );
+  },
+
+  sendVendorCommunication: (
+    vendorId: string,
+    body: {
+      template_id: string;
+      audience?: string;
+      variables?: Record<string, string>;
+      contact_name?: string;
+      schedule?: string;
+    },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{
+      log_id: string;
+      status: string;
+      sent: number;
+      delivered: number;
+      estimated_cost_inr: number;
+    }>(`/api/v1/vendors/${vendorId}/communications/send`, {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  vendorCommunicationLogs: (
+    vendorId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<VendorCommunicationLogs>(`/api/v1/vendors/${vendorId}/communications/logs`, {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  requestVendorCommunicationTemplate: (
+    vendorId: string,
+    body: { name: string; channel?: string; notes?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ id: string; status: string }>(
+      `/api/v1/vendors/${vendorId}/communications/template-requests`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
   submitPluginBundle: (
     vendorId: string,
     body: SubmitPluginBundleBody,
@@ -1881,8 +2121,126 @@ export const marketplaceApi = {
       { ensureAccessToken, tenantId, method: "POST", body },
     ),
 
+  paymentsConfig: () =>
+    api<{ provider: string; cf_env: string; cashfree_app_id: string }>("/api/v1/payments/config"),
+
+  createCheckoutSession: (
+    tenantId: string,
+    body: { address_id?: string; payment_method: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CheckoutSession>(`/api/v1/tenants/${tenantId}/checkout/sessions`, {
+      ensureAccessToken,
+      tenantId,
+      method: "POST",
+      body,
+    }),
+
+  orderPayment: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<OrderPaymentStatus>(`/api/v1/tenants/${tenantId}/orders/${orderId}/payment`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  simulateOrderPayment: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<OrderPaymentStatus>(
+      `/api/v1/tenants/${tenantId}/orders/${orderId}/payment/simulate`,
+      { ensureAccessToken, tenantId, method: "POST" },
+    ),
+
+  reconcileOrderPayment: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<OrderPaymentStatus>(
+      `/api/v1/tenants/${tenantId}/orders/${orderId}/payment/reconcile`,
+      { ensureAccessToken, tenantId, method: "POST" },
+    ),
+
   orders: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
     apiAuthed<{ orders: OrderSummary[] }>(`/api/v1/tenants/${tenantId}/orders`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  orderHub: (tenantId: string, ensureAccessToken: (force?: boolean) => Promise<string | null>) =>
+    apiAuthed<CustomerOrderHub>(`/api/v1/tenants/${tenantId}/order-hub`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  orderHubOrder: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CustomerHubOrder>(`/api/v1/tenants/${tenantId}/order-hub/orders/${orderId}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    }),
+
+  orderHubSubmitReturn: (
+    tenantId: string,
+    orderId: string,
+    body: { category: string; description: string; photo_name?: string },
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ message: string; item: CustomerHubReturn; order: CustomerHubOrder }>(
+      `/api/v1/tenants/${tenantId}/order-hub/orders/${orderId}/returns`,
+      { ensureAccessToken, tenantId, method: "POST", body },
+    ),
+
+  orderHubSimulateAccept: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<{ message: string; item: CustomerHubReturn; order: CustomerHubOrder }>(
+      `/api/v1/tenants/${tenantId}/order-hub/orders/${orderId}/returns/simulate-accept`,
+      { ensureAccessToken, tenantId, method: "POST" },
+    ),
+
+  orderHubCloseWindow: (
+    tenantId: string,
+    orderId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CustomerHubOrder>(
+      `/api/v1/tenants/${tenantId}/order-hub/orders/${orderId}/close-window`,
+      { ensureAccessToken, tenantId, method: "POST" },
+    ),
+
+  orderHubChat: (
+    tenantId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+    orderId?: string,
+  ) => {
+    const q = orderId ? `?order_id=${encodeURIComponent(orderId)}` : "";
+    return apiAuthed<CustomerOrderHubChat>(`/api/v1/tenants/${tenantId}/order-hub/chat${q}`, {
+      ensureAccessToken,
+      tenantId,
+      method: "GET",
+    });
+  },
+
+  orderHubPayments: (
+    tenantId: string,
+    ensureAccessToken: (force?: boolean) => Promise<string | null>,
+  ) =>
+    apiAuthed<CustomerOrderHubPayments>(`/api/v1/tenants/${tenantId}/order-hub/payments`, {
       ensureAccessToken,
       tenantId,
       method: "GET",
@@ -2095,6 +2453,173 @@ export type PublicityBoard = {
   ai_tokens_per_month: number;
   media_kit_format: string;
   updated_at: string | null;
+};
+
+export type VendorCommunicationTemplate = {
+  id: string;
+  code: string;
+  name: string;
+  channel: string;
+  plugin: string;
+  message_type: string;
+  body: string;
+  approval_status: string;
+  dlt_reference: string | null;
+  vendors_using: number;
+  messages_sent_month: number;
+  variable_map: { index: number; label: string }[];
+  meta: Record<string, unknown>;
+  submitted_at: string | null;
+};
+
+export type VendorCommunicationLog = {
+  id: string;
+  occurred_at: string;
+  channel: string;
+  template_code: string;
+  template_name: string;
+  audience: string;
+  contact_name: string | null;
+  sent: number;
+  delivered: number | null;
+  read_count: number;
+  replied_count: number;
+  status: string;
+};
+
+export type VendorSettlementOrder = {
+  id: string;
+  order_ref: string;
+  order_time: string;
+  items: string;
+  gross: number;
+  net: number;
+  status: string;
+  window_label: string;
+  settlement_label: string;
+  return_label: string;
+  in_tracker: boolean;
+  in_today: boolean;
+};
+
+export type VendorSettlementEarnings = {
+  as_of: string;
+  zone: string;
+  live: boolean;
+  open_return_alerts: number;
+  kpis: {
+    settled_today: number;
+    settled_today_sub: string;
+    pending_window: number;
+    pending_window_sub: string;
+    on_hold: number;
+    on_hold_sub: string;
+    next_transfer_minutes: number;
+    next_transfer_sub: string;
+  };
+  tracker: VendorSettlementOrder[];
+  calculation: {
+    title: string;
+    lines: { label: string; amount: number; tone: string }[];
+  };
+};
+
+export type VendorSettlementReturn = {
+  id: string;
+  order_ref: string;
+  customer_name: string;
+  complaint: string;
+  reason_code: string;
+  refund_requested: number;
+  amount_on_hold: number;
+  order_items: string;
+  timeline: string;
+  deadline_seconds: number | null;
+  status: string;
+  contest_reason: string;
+  chat: { kind: string; label?: string; text: string }[];
+  meta: Record<string, unknown>;
+};
+
+export type VendorSettlementReturns = {
+  open_count: number;
+  items: VendorSettlementReturn[];
+};
+
+export type VendorSettlementOrders = {
+  total: number;
+  items: VendorSettlementOrder[];
+};
+
+export type VendorSettlementHistory = {
+  summary: {
+    period: string;
+    gross: number;
+    total_deductions: number;
+    net_received: number;
+    tds_deducted: number;
+    refund_adjustments: number;
+    form_16a_next: string;
+  };
+  items: {
+    id: string;
+    settle_date: string;
+    orders: number;
+    gross: number;
+    deductions: number;
+    refund_adj: number;
+    net: number;
+    utr: string | null;
+  }[];
+};
+
+export type VendorSettlementChat = {
+  info: string;
+  threads: {
+    id: string;
+    customer_name: string;
+    order_ref: string;
+    locked: boolean;
+    lock_label: string;
+    messages: { kind: string; label?: string; text: string }[];
+  }[];
+};
+
+export type VendorSettlementBank = {
+  bank_name: string;
+  account_mask: string;
+  ifsc: string;
+  branch: string;
+  verified: boolean;
+  note: string;
+};
+
+export type VendorCommunicationsHub = {
+  summary: {
+    sent_this_month: number;
+    delivery_rate: number;
+    active_campaigns: number;
+    templates_available: number;
+    by_channel: Record<
+      string,
+      { sent: number; delivered: number; badge?: string | null; delivery_rate?: number }
+    >;
+  };
+  recent: VendorCommunicationLog[];
+};
+
+export type VendorCommunicationLogs = {
+  items: VendorCommunicationLog[];
+  campaign: {
+    title: string;
+    targeted: number;
+    sent: number;
+    delivered: number;
+    read: number;
+    replied: number;
+    opted_out: number;
+  } | null;
+  compliance: Record<string, string>;
 };
 
 export type PlatformAdminEnsure = (force?: boolean) => Promise<string | null>;
@@ -2617,4 +3142,367 @@ export const platformAdminApi = {
       method: "POST",
       body,
     }),
+
+  communicationTemplates: (
+    ensureAccessToken: PlatformAdminEnsure,
+    params?: { status?: string },
+  ) => {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    const query = search.toString();
+    return apiAuthed<{
+      items: CommunicationTemplateItem[];
+      summary: CommunicationTemplateSummary;
+    }>(`/api/v1/admin/communications/templates${query ? `?${query}` : ""}`, {
+      ensureAccessToken,
+      method: "GET",
+    });
+  },
+
+  communicationTemplate: (templateId: string, ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<CommunicationTemplateItem>(
+      `/api/v1/admin/communications/templates/${templateId}`,
+      { ensureAccessToken, method: "GET" },
+    ),
+
+  createCommunicationTemplate: (
+    body: {
+      name: string;
+      channel: string;
+      plugin?: string;
+      message_type?: string;
+      body: string;
+      code?: string;
+      buttons?: string;
+    },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<CommunicationTemplateItem>("/api/v1/admin/communications/templates", {
+      ensureAccessToken,
+      method: "POST",
+      body,
+    }),
+
+  communicationDlt: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      entity: {
+        entity_name: string;
+        entity_id: string;
+        registered_on: string;
+        renewal: string;
+        status: string;
+        sender_header: string;
+        sender_header_status: string;
+        waba_status: string;
+        bsp: string;
+        free_conversations_month: number;
+      };
+      template_stats: {
+        total_registered: number;
+        promotional: number;
+        transactional: number;
+        pending: number;
+      };
+      whatsapp: {
+        business_account: string;
+        bsp: string;
+        hsm_live: number;
+        hsm_pending: number;
+        free_conversations_month: number;
+      };
+      pending_registrations: {
+        id: string;
+        name: string;
+        message_type: string;
+        dlt_reference: string | null;
+        submitted_at: string | null;
+        expected_by: string | null;
+        approval_status: string;
+      }[];
+    }>("/api/v1/admin/communications/dlt", { ensureAccessToken, method: "GET" }),
+
+  communicationUsage: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      items: CommunicationUsageItem[];
+      summary: CommunicationUsageSummary;
+    }>("/api/v1/admin/communications/usage", { ensureAccessToken, method: "GET" }),
+
+  communicationConsent: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<{
+      sms_optouts: number;
+      whatsapp_optouts: number;
+      email_unsubs: number;
+      dnd_scrub_today: number;
+      note: string;
+    }>("/api/v1/admin/communications/consent", { ensureAccessToken, method: "GET" }),
+
+  settlementDashboard: (ensureAccessToken: PlatformAdminEnsure, period = "today") =>
+    apiAuthed<SettlementDashboard>(
+      `/api/v1/admin/settlement/dashboard?period=${encodeURIComponent(period)}`,
+      { ensureAccessToken, method: "GET" },
+    ),
+
+  settlementReturns: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<SettlementReturnQueue>("/api/v1/admin/settlement/returns", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  resolveSettlementReturn: (
+    caseId: string,
+    body: { outcome: string; amount?: number; reason?: string },
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<{ message: string; item: SettlementReturnCase }>(
+      `/api/v1/admin/settlement/returns/${caseId}/resolve`,
+      { ensureAccessToken, method: "POST", body },
+    ),
+
+  settlementLedger: (ensureAccessToken: PlatformAdminEnsure, vendor?: string) => {
+    const query = vendor ? `?vendor=${encodeURIComponent(vendor)}` : "";
+    return apiAuthed<SettlementLedger>(`/api/v1/admin/settlement/ledger${query}`, {
+      ensureAccessToken,
+      method: "GET",
+    });
+  },
+
+  settlementTds: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<SettlementTds>("/api/v1/admin/settlement/tds", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  settlementEscrow: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<SettlementEscrow>("/api/v1/admin/settlement/escrow", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  settlementFaults: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<SettlementFaults>("/api/v1/admin/settlement/faults", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  settlementFraud: (ensureAccessToken: PlatformAdminEnsure) =>
+    apiAuthed<SettlementFraud>("/api/v1/admin/settlement/fraud", {
+      ensureAccessToken,
+      method: "GET",
+    }),
+
+  settlementFraudAction: (
+    signalId: string,
+    action: string,
+    ensureAccessToken: PlatformAdminEnsure,
+  ) =>
+    apiAuthed<{ message: string; item: SettlementFraudSignal }>(
+      `/api/v1/admin/settlement/fraud/${signalId}/action`,
+      { ensureAccessToken, method: "POST", body: { action } },
+    ),
+};
+
+export type CommunicationTemplateItem = {
+  id: string;
+  code: string;
+  name: string;
+  channel: string;
+  plugin: string;
+  message_type: string;
+  body: string;
+  approval_status: string;
+  dlt_reference: string | null;
+  vendors_using: number;
+  messages_sent_month: number;
+  variable_map: { index: number; label: string }[];
+  meta: Record<string, unknown>;
+  submitted_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type CommunicationTemplateSummary = {
+  live: number;
+  pending: number;
+  sms: number;
+  whatsapp: number;
+  email: number;
+  inapp: number;
+};
+
+export type CommunicationUsageItem = {
+  id: string;
+  occurred_at: string;
+  vendor_name: string;
+  channel: string;
+  template_code: string;
+  template_name: string;
+  audience: string;
+  sent: number;
+  delivered: number | null;
+  status: string;
+};
+
+export type CommunicationUsageSummary = {
+  messages_this_month: number;
+  sms_sent: number;
+  whatsapp_sent: number;
+  email_sent: number;
+  inapp_sent: number;
+  failed_or_opted_out: number;
+  warning: string | null;
+};
+
+export type SettlementBatch = {
+  id: string;
+  batch_time: string;
+  vendors: number | null;
+  orders: number | null;
+  gross: number | null;
+  deductions: number | null;
+  net: number | null;
+  status: string;
+  utr: string | null;
+  batch_date: string;
+};
+
+export type SettlementDashboard = {
+  period: string;
+  zone: string;
+  as_of: string;
+  live: boolean;
+  escrow: {
+    total: number;
+    settled_queue: number;
+    in_window: number;
+    on_hold: number;
+    platform_float: number;
+  };
+  open_returns: number;
+  in_return_window: number;
+  failed_imps: number;
+  batches: SettlementBatch[];
+  kpis: Record<string, number | string>;
+};
+
+export type SettlementReturnCase = {
+  id: string;
+  order_ref: string;
+  vendor_name: string;
+  case_type: string;
+  status: string;
+  customer_claim: string;
+  vendor_claim: string;
+  reason_code: string;
+  amount_at_stake: number;
+  refund_amount: number | null;
+  summary: string;
+  timeline: string;
+  deadline_seconds: number | null;
+  chat: { kind: string; text: string }[];
+  meta: Record<string, unknown>;
+};
+
+export type SettlementReturnQueue = {
+  info: string;
+  open_count: number;
+  items: SettlementReturnCase[];
+};
+
+export type SettlementLedgerLine = {
+  id: string;
+  vendor_name: string;
+  order_ref: string;
+  order_time: string;
+  items: string;
+  gross: number;
+  deductions: number;
+  net_label: string;
+  status: string;
+  utr: string | null;
+};
+
+export type SettlementLedger = {
+  vendor_name: string;
+  vendors: string[];
+  summary: {
+    gross_orders: number;
+    platform_commission: number;
+    gst_on_commission: number;
+    gateway_fee: number;
+    tds: number;
+    refund_adjustments: number;
+    net_settled: number;
+  };
+  items: SettlementLedgerLine[];
+};
+
+export type SettlementTds = {
+  period: string;
+  kpis: {
+    tds_this_month: number;
+    tds_deposit_by: string;
+    gst_on_commission: number;
+    gst_file_by: string;
+    total_commission: number;
+  };
+  items: {
+    id: string;
+    vendor_name: string;
+    period: string;
+    gross_paid: number;
+    tds_amount: number;
+    net_paid: number;
+  }[];
+};
+
+export type SettlementEscrow = {
+  info: string;
+  kpis: {
+    total_escrow: number;
+    queued_for_release: number;
+    in_return_window: number;
+    on_hold: number;
+  };
+  items: {
+    id: string;
+    order_ref: string;
+    vendor_name: string;
+    delivered_at: string;
+    window_closes_at: string;
+    minutes_left: number | null;
+    amount: number;
+    status: string;
+  }[];
+};
+
+export type SettlementFaults = {
+  kpis: {
+    faults_today: number;
+    platform_absorbed: number;
+    auto_resolved_pct: number;
+  };
+  items: {
+    id: string;
+    order_ref: string;
+    fault_type: string;
+    customer_name: string;
+    refund_amount: number;
+    resolved_in: string;
+    vendor_impact: string;
+  }[];
+};
+
+export type SettlementFraudSignal = {
+  id: string;
+  party_name: string;
+  party_type: string;
+  signal: string;
+  returns_label: string;
+  action_label: string;
+  status: string;
+};
+
+export type SettlementFraud = {
+  info: string;
+  items: SettlementFraudSignal[];
 };
